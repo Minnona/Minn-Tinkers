@@ -1,0 +1,16 @@
+## Interface: 30300
+## Title: Minn Tinkers
+## Notes: Personal utility addon with toggleable quality-of-life modules.
+## Author: Minn
+## Version: 0.1.12
+## SavedVariables: MinnTinkersDB
+## SavedVariablesPerCharacter: MinnTinkersCharDB
+
+Core.lua
+Skin.lua
+UI.lua
+Modules\AutoSellGrey.lua
+Modules\AutoMarkRoles.lua
+Modules\VengefulPact.lua
+Modules\ManariIntuition.lua
+Modules\EnvenomedWeapons.lua
