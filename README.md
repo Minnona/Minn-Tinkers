@@ -5,6 +5,7 @@ Personal utility addon for World of Warcraft 3.3.5a / Ascension.
 ## Features
 
 - Auto-sell grey items
+- Auto-skip safe single-option gossip
 - Auto-mark tank and healer roles
 - Felsworn tools
 - Venomancer tools
@@ -14,7 +15,14 @@ Personal utility addon for World of Warcraft 3.3.5a / Ascension.
 
 ## Commands
 
-/minn
+`/minn`
+
+Useful commands:
+
+- `/minn gossip`
+- `/minn sell`
+- `/minn mark`
+- `/minn roles`
 
 ## License
 

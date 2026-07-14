@@ -90,7 +90,7 @@ function module:GetBuffInfo(core)
             break
         end
 
-        if name == spellName then
+        if name == spellName or (core.NameMatches and core:NameMatches(name, spellName)) then
             local remaining = nil
 
             if expirationTime and expirationTime > 0 then
@@ -169,10 +169,13 @@ end
 function module:CreateButton(core)
     if self.button then return self.button end
 
-    local button = CreateFrame("Button", "MinnTinkersEnvenomedWeaponsButton", UIParent, "SecureActionButtonTemplate,UIPanelButtonTemplate")
+    local button = CreateFrame("Button", "MinnTinkersEnvenomedWeaponsButton", UIParent, "SecureActionButtonTemplate")
     button:SetWidth(220)
     button:SetHeight(32)
     button:SetPoint("CENTER", UIParent, "CENTER", 0, -190)
+    if core.EnsureButtonFontString then
+        core:EnsureButtonFontString(button)
+    end
     button:SetText("Cast Envenomed Weapons")
     button:RegisterForClicks("AnyUp")
     button:Hide()

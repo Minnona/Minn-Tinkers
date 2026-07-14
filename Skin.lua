@@ -14,6 +14,71 @@ local function SetFontObject(fontString, fontObject)
     end
 end
 
+local function ClearButtonTexture(button, getterName, setterName)
+    if not button then return end
+
+    if getterName and button[getterName] then
+        local texture = button[getterName](button)
+        HideTexture(texture)
+        if texture and texture.SetTexture then
+            texture:SetTexture(nil)
+        end
+    end
+
+    if setterName and button[setterName] then
+        pcall(button[setterName], button, "")
+    end
+end
+
+local function HideNamedButtonRegions(button)
+    if not button or not button.GetName then return end
+
+    local name = button:GetName()
+    if not name then return end
+
+    local suffixes = {
+        "Left", "Middle", "Right",
+        "TopLeft", "TopMiddle", "TopRight",
+        "MiddleLeft", "MiddleMiddle", "MiddleRight",
+        "BottomLeft", "BottomMiddle", "BottomRight",
+        "Border", "Background", "Flash", "Highlight", "Pushed", "Disabled"
+    }
+
+    for _, suffix in ipairs(suffixes) do
+        HideTexture(_G[name .. suffix])
+    end
+end
+
+function MT:EnsureButtonFontString(button)
+    if not button then return nil end
+
+    local text = button.GetFontString and button:GetFontString()
+    if text then return text end
+
+    text = button:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    text:SetPoint("CENTER", button, "CENTER", 0, 0)
+    text:SetJustifyH("CENTER")
+    text:SetJustifyV("MIDDLE")
+
+    if button.SetFontString then
+        button:SetFontString(text)
+    end
+
+    return text
+end
+
+function MT:StripBlizzardButtonSkin(button)
+    if not button then return end
+
+    ClearButtonTexture(button, "GetNormalTexture", "SetNormalTexture")
+    ClearButtonTexture(button, "GetPushedTexture", "SetPushedTexture")
+    ClearButtonTexture(button, "GetHighlightTexture", "SetHighlightTexture")
+    ClearButtonTexture(button, "GetDisabledTexture", "SetDisabledTexture")
+    ClearButtonTexture(button, "GetCheckedTexture", "SetCheckedTexture")
+
+    HideNamedButtonRegions(button)
+end
+
 function MT:IsElvUILoaded()
     if _G.ElvUI or _G.E then
         return true
@@ -76,14 +141,10 @@ function MT:SkinButton(button)
     if not button then return end
     local colors = self:GetSkinColors()
 
-    if button.GetNormalTexture then HideTexture(button:GetNormalTexture()) end
-    if button.GetPushedTexture then HideTexture(button:GetPushedTexture()) end
-    if button.GetHighlightTexture then HideTexture(button:GetHighlightTexture()) end
-    if button.GetDisabledTexture then HideTexture(button:GetDisabledTexture()) end
-
+    self:StripBlizzardButtonSkin(button)
     self:SetBackdrop(button, colors.bgSoft, colors.border)
 
-    local text = button.GetFontString and button:GetFontString()
+    local text = self:EnsureButtonFontString(button)
     if text then
         SetFontObject(text, GameFontHighlightSmall)
         text:SetTextColor(colors.text[1], colors.text[2], colors.text[3], colors.text[4])

@@ -5,7 +5,7 @@ _G.MinnTinkers = MT
 
 MT.addonName = ADDON_NAME or "MinnTinkers"
 MT.displayName = "Minn Tinkers"
-MT.version = "0.1.12"
+MT.version = "0.1.14"
 MT.modules = {}
 MT.moduleOrder = {}
 MT.globalDB = nil
@@ -51,6 +51,10 @@ local function MatchesName(value, expected)
     if string.find(v, e, 1, true) or string.find(e, v, 1, true) then return true end
 
     return false
+end
+
+function MT:NameMatches(value, expected)
+    return MatchesName(value, expected)
 end
 
 function MT:GetPlayerClassInfo()
@@ -304,6 +308,7 @@ function MT:ShowHelp()
     self:Print("/minn - open settings")
     self:Print("/minn list - list modules")
     self:Print("/minn sell - sell grey items at merchant")
+    self:Print("/minn gossip - try safe gossip skip on the current NPC")
     self:Print("/minn mark - mark tank with Star and healer with Moon")
     self:Print("/minn healer - alias for /minn mark")
     self:Print("/minn roles - print RDF/LFG roles for current party")
@@ -383,6 +388,16 @@ SlashCmdList["MINNTINKERS"] = function(message)
         local module = MT.modules.AutoSellGrey
         if module and module.SellGreyItems then
             module:SellGreyItems(MT, true)
+        end
+        return
+    end
+
+    if command == "gossip" or command == "skipgossip" then
+        local module = MT.modules.AutoSkipGossip
+        if module and module.TrySkip then
+            module:TrySkip(MT, true)
+        else
+            MT:Print("AutoSkipGossip module is not available.")
         end
         return
     end

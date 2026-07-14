@@ -14,7 +14,9 @@ local module = {
         delay = 1.5,
         useInDungeons = true,
         useInRaids = false,
-        printReminder = false
+        printReminder = false,
+        checkInterval = 2,
+        postClickCheckDuration = 8
     }
 }
 
@@ -55,7 +57,7 @@ function module:HasPactBuff(core)
             return true
         end
 
-        if spellName and name == spellName then
+        if spellName and (name == spellName or (core.NameMatches and core:NameMatches(name, spellName))) then
             return true
         end
     end
@@ -110,10 +112,13 @@ end
 function module:CreateButton(core)
     if self.button then return self.button end
 
-    local button = CreateFrame("Button", "MinnTinkersVengefulPactButton", UIParent, "SecureActionButtonTemplate,UIPanelButtonTemplate")
+    local button = CreateFrame("Button", "MinnTinkersVengefulPactButton", UIParent, "SecureActionButtonTemplate")
     button:SetWidth(180)
     button:SetHeight(28)
     button:SetPoint("CENTER", UIParent, "CENTER", 0, -120)
+    if core.EnsureButtonFontString then
+        core:EnsureButtonFontString(button)
+    end
     button:SetText("Cast Vengeful Pact")
     button:RegisterForClicks("AnyUp")
     button:Hide()
@@ -221,24 +226,9 @@ function module:ShowPactButton(core, manual)
 end
 
 function module:ScheduleButtonCheck(core, delay)
-    if not self.frame then return end
-
-    self.checkElapsed = 0
-    self.checkDelay = delay or 0.5
-
-    self.frame:SetScript("OnUpdate", function(frame, elapsed)
-        module.checkElapsed = (module.checkElapsed or 0) + elapsed
-
-        if module.checkElapsed >= (module.checkDelay or 0.5) then
-            frame:SetScript("OnUpdate", nil)
-
-            if module:HasPactBuff(core) then
-                module:HideButton()
-            else
-                module:ShowPactButton(core, false)
-            end
-        end
-    end)
+    self.nextButtonCheck = delay or 0.5
+    self.buttonCheckElapsed = 0
+    self.buttonCheckStartedAt = GetTime and GetTime() or 0
 end
 
 function module:OnDungeonEntry(core)
@@ -250,6 +240,9 @@ function module:OnDungeonEntry(core)
     local instanceKey = self:GetInstanceKey()
 
     if self.lastInstanceKey == instanceKey then
+        if self.button and self.button:IsShown() and self:HasPactBuff(core) then
+            self:HideButton()
+        end
         return
     end
 
@@ -259,19 +252,53 @@ function module:OnDungeonEntry(core)
 end
 
 function module:ScheduleDungeonEntry(core, delay)
-    if not self.frame then return end
-
+    self.nextEntryCheck = delay or 1.5
     self.entryElapsed = 0
-    self.entryDelay = delay or 1.5
+end
 
-    self.frame:SetScript("OnUpdate", function(frame, elapsed)
-        module.entryElapsed = (module.entryElapsed or 0) + elapsed
+function module:OnUpdate(core, elapsed)
+    local db = self:GetDB(core)
+    if not db then return end
 
-        if module.entryElapsed >= (module.entryDelay or 1.5) then
-            frame:SetScript("OnUpdate", nil)
-            module:OnDungeonEntry(core)
+    if self.nextEntryCheck then
+        self.entryElapsed = (self.entryElapsed or 0) + elapsed
+        if self.entryElapsed >= self.nextEntryCheck then
+            self.nextEntryCheck = nil
+            self.entryElapsed = 0
+            self:OnDungeonEntry(core)
         end
-    end)
+    end
+
+    if self.nextButtonCheck then
+        self.buttonCheckElapsed = (self.buttonCheckElapsed or 0) + elapsed
+        if self.buttonCheckElapsed >= self.nextButtonCheck then
+            self.buttonCheckElapsed = 0
+
+            if self:HasPactBuff(core) then
+                self.nextButtonCheck = nil
+                self:HideButton()
+            else
+                local now = GetTime and GetTime() or 0
+                local started = tonumber(self.buttonCheckStartedAt or now) or now
+                local maxDuration = tonumber(db.postClickCheckDuration) or 8
+
+                if now > 0 and started > 0 and (now - started) >= maxDuration then
+                    self.nextButtonCheck = nil
+                else
+                    self.nextButtonCheck = 0.75
+                end
+            end
+        end
+    end
+
+    self.pulseElapsed = (self.pulseElapsed or 0) + elapsed
+    if self.pulseElapsed >= (tonumber(db.checkInterval) or 2) then
+        self.pulseElapsed = 0
+
+        if self.button and self.button:IsShown() and self:HasPactBuff(core) then
+            self:HideButton()
+        end
+    end
 end
 
 function module:OnEvent(core, event, arg1)
@@ -284,7 +311,7 @@ function module:OnEvent(core, event, arg1)
     end
 
     if event == "UNIT_AURA" and arg1 == "player" then
-        if self.button and self.button:IsShown() and self:HasPactBuff(core) then
+        if self:HasPactBuff(core) then
             self:HideButton()
         end
         return
@@ -309,6 +336,10 @@ function module:OnEnable(core)
             module:OnEvent(core, event, arg1)
         end)
     end
+
+    self.frame:SetScript("OnUpdate", function(frame, elapsed)
+        module:OnUpdate(core, elapsed)
+    end)
 
     self.frame:RegisterEvent("PLAYER_ENTERING_WORLD")
     self.frame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
@@ -335,6 +366,9 @@ function module:OnDisable(core)
     self:HideButton()
     self.lastInstanceKey = nil
     self.printedForInstanceKey = nil
+    self.nextEntryCheck = nil
+    self.nextButtonCheck = nil
+    self.buttonCheckElapsed = nil
 end
 
 function module:BuildOptions(core, panel, y)

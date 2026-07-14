@@ -70,7 +70,7 @@ function module:GetBuffInfo(core)
             break
         end
 
-        if name == spellName then
+        if name == spellName or (core.NameMatches and core:NameMatches(name, spellName)) then
             local remaining = nil
 
             if expirationTime and expirationTime > 0 then
@@ -149,10 +149,13 @@ end
 function module:CreateButton(core)
     if self.button then return self.button end
 
-    local button = CreateFrame("Button", "MinnTinkersManariIntuitionButton", UIParent, "SecureActionButtonTemplate,UIPanelButtonTemplate")
+    local button = CreateFrame("Button", "MinnTinkersManariIntuitionButton", UIParent, "SecureActionButtonTemplate")
     button:SetWidth(190)
     button:SetHeight(28)
     button:SetPoint("CENTER", UIParent, "CENTER", 0, -155)
+    if core.EnsureButtonFontString then
+        core:EnsureButtonFontString(button)
+    end
     button:SetText("Cast Man'ari Intuition")
     button:RegisterForClicks("AnyUp")
     button:Hide()
