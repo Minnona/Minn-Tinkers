@@ -176,14 +176,14 @@ function module:BuildOptions(core, panel, y)
     core.optionControls[self.key].printSkipped = printSkipped
     y = y - 30
 
-    core:CreateText(panel, "Safe mode: only skips when there is exactly one gossip option and no quest options. Hold Shift while opening/talking to an NPC to bypass it for that interaction.", 42, y, 500, "GameFontDisableSmall")
-    y = y - 40
+    local helpText = core:CreateText(panel, "Safe mode: only skips when there is exactly one gossip option and no quest options. Hold Shift while opening/talking to an NPC to bypass it for that interaction.", 42, y, 520, "GameFontDisableSmall")
+    y = y - math.ceil((helpText:GetStringHeight() or 24) + 12)
 
-    core:CreateOptionButton(panel, "MinnTinkers_AutoSkipGossip_TryNow", "Try current gossip", 42, y, 140, 24, function()
+    core:CreateOptionButton(panel, "MinnTinkers_AutoSkipGossip_TryNow", "Try current gossip", 42, y, 180, 24, function()
         module:TrySkip(core, true)
     end)
 
-    return y - 34
+    return y - 38
 end
 
 function module:RefreshOptions(core)

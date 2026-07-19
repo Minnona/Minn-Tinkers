@@ -12,6 +12,7 @@ Personal utility addon for World of Warcraft 3.3.5a / Ascension.
 - Buff reminder buttons
 - Per-character settings
 - Native Interface > AddOns settings pages
+- Smart dungeon rolls
 
 ## Commands
 
@@ -23,6 +24,8 @@ Useful commands:
 - `/minn sell`
 - `/minn mark`
 - `/minn roles`
+- `/minn rolls`
+- `/minn rolls pause 60`
 
 ## License
 

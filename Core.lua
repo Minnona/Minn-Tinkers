@@ -5,7 +5,7 @@ _G.MinnTinkers = MT
 
 MT.addonName = ADDON_NAME or "MinnTinkers"
 MT.displayName = "Minn Tinkers"
-MT.version = "0.1.14"
+MT.version = "0.1.16"
 MT.modules = {}
 MT.moduleOrder = {}
 MT.globalDB = nil
@@ -309,6 +309,9 @@ function MT:ShowHelp()
     self:Print("/minn list - list modules")
     self:Print("/minn sell - sell grey items at merchant")
     self:Print("/minn gossip - try safe gossip skip on the current NPC")
+    self:Print("/minn rolls - print smart dungeon roll status")
+    self:Print("/minn rolls pause 60 - pause smart dungeon rolls for 60 seconds")
+    self:Print("/minn rolls resume - resume smart dungeon rolls")
     self:Print("/minn mark - mark tank with Star and healer with Moon")
     self:Print("/minn healer - alias for /minn mark")
     self:Print("/minn roles - print RDF/LFG roles for current party")
@@ -398,6 +401,55 @@ SlashCmdList["MINNTINKERS"] = function(message)
             module:TrySkip(MT, true)
         else
             MT:Print("AutoSkipGossip module is not available.")
+        end
+        return
+    end
+
+    if command == "rolls" or command == "lootrolls" or command == "smartrolls" then
+        local module = MT.modules.SmartDungeonRolls
+        if not module then
+            MT:Print("Smart Dungeon Rolls module is not available.")
+            return
+        end
+
+        local subcommand, subrest = string.match(rest or "", "^(%S*)%s*(.-)$")
+        subcommand = string.lower(subcommand or "")
+        subrest = MT:Trim(subrest)
+
+        if subcommand == "on" then
+            MT:SetModuleEnabled("SmartDungeonRolls", true)
+            MT:Print("SmartDungeonRolls enabled.")
+        elseif subcommand == "off" then
+            MT:SetModuleEnabled("SmartDungeonRolls", false)
+            MT:Print("SmartDungeonRolls disabled.")
+        elseif subcommand == "pause" then
+            module:SetPaused(MT, tonumber(subrest) or 60)
+        elseif subcommand == "resume" or subcommand == "unpause" then
+            module:Resume(MT)
+        elseif subcommand == "" or subcommand == "status" then
+            module:PrintStatus(MT)
+        else
+            MT:Print("Usage: /minn rolls, /minn rolls on, /minn rolls off, /minn rolls pause 60, /minn rolls resume")
+        end
+        return
+    end
+
+    if command == "rollpause" then
+        local module = MT.modules.SmartDungeonRolls
+        if module then
+            module:SetPaused(MT, tonumber(rest) or 60)
+        else
+            MT:Print("Smart Dungeon Rolls module is not available.")
+        end
+        return
+    end
+
+    if command == "rollresume" or command == "rollunpause" then
+        local module = MT.modules.SmartDungeonRolls
+        if module then
+            module:Resume(MT)
+        else
+            MT:Print("Smart Dungeon Rolls module is not available.")
         end
         return
     end

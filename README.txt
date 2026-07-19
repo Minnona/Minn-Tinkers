@@ -3,7 +3,7 @@ Minn Tinkers
 
 Personal WoW 3.3.5a quality-of-life addon.
 
-Version: 0.1.14
+Version: 0.1.16
 License: GPL-3.0
 
 Install:
@@ -26,6 +26,7 @@ Settings:
 Universal:
 - Auto-sell grey items.
 - Auto-skip safe single-option gossip. Hold Shift while opening an NPC to bypass it for that interaction.
+- Smart dungeon rolls.
 - Mark tank with Star and healer with Moon from RDF/LFG role data.
 
 Felsworn:
@@ -42,6 +43,19 @@ Debug commands:
 /minn list
 
 Changelog:
+
+0.1.16
+- Fixed Universal page layout so wrapped text no longer overlaps nearby controls.
+- Widened Smart Dungeon Rolls option buttons to better fit long labels.
+- Increased settings page content width and checkbox text width for cleaner spacing.
+
+0.1.15
+- Added Smart Dungeon Rolls universal module.
+- Green/blue equipment can auto-disenchant, greed, pass, or stay manual.
+- Purple equipment stays manual by default, with optional unusable handling.
+- Recipes can Need when they match your professions and required skill.
+- Lockboxes can Greed, Pass, stay Manual, or Need if Lockpicking is detected.
+- Added /minn rolls, /minn rolls pause 60, and /minn rolls resume.
 
 0.1.14
 - Fixed reminder spell buttons using Blizzard button backdrops when pressed.

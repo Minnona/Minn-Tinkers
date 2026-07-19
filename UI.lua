@@ -62,7 +62,7 @@ function MT:CreateCheckbox(parent, name, label, tooltipTitle, tooltipText, x, y,
     local text = _G[checkbox:GetName() .. "Text"]
     if text then
         text:SetText(label or "")
-        text:SetWidth(500)
+        text:SetWidth(540)
         text:SetJustifyH("LEFT")
     end
 
@@ -84,7 +84,7 @@ end
 function MT:CreateText(parent, text, x, y, width, fontObject)
     local fs = parent:CreateFontString(nil, "ARTWORK", fontObject or "GameFontHighlightSmall")
     fs:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
-    fs:SetWidth(width or 520)
+    fs:SetWidth(width or 540)
     fs:SetJustifyH("LEFT")
     fs:SetText(text or "")
     return fs
@@ -93,7 +93,7 @@ end
 function MT:CreateOptionButton(parent, name, label, x, y, width, height, onClick)
     local button = CreateFrame("Button", name, parent, "UIPanelButtonTemplate")
     button:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
-    button:SetWidth(width or 120)
+    button:SetWidth(width or 160)
     button:SetHeight(height or 24)
     button:SetText(label or "Button")
     button:SetScript("OnClick", function()
@@ -291,7 +291,7 @@ function MT:BuildOptionsCategory(key)
     scrollFrame:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -28, 18)
 
     local page = CreateFrame("Frame", "MinnTinkersOptionsPage_" .. key, scrollFrame)
-    page:SetWidth(560)
+    page:SetWidth(600)
     page:SetHeight(1)
     scrollFrame:SetScrollChild(page)
 
