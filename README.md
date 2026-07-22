@@ -17,19 +17,20 @@ Personal utility addon for World of Warcraft 3.3.5a / Ascension.
 
 ## Commands
 
-`/minn`
+Main command:
 
-Useful commands:
+- `/minn` - open settings
 
-- `/minn gossip`
-- `/minn sell`
-- `/minn mark`
-- `/minn roles`
-- `/minn rolls`
-- `/minn rolls pause 60`
-- `/minn ml`
+Raid Roll Helper:
+
 - `/minn roll [item]`
 - `/minn roll 3 [item]`
+- `/minn roll status`
+- `/minn roll log`
+- `/minn roll cancel`
+- `/minn roll ml`
+
+Most other addon controls are handled through the settings UI.
 
 ## License
 
