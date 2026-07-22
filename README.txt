@@ -3,7 +3,7 @@ Minn Tinkers
 
 Personal WoW 3.3.5a quality-of-life addon.
 
-Version: 0.1.17
+Version: 0.1.18
 License: GPL-3.0
 
 Install:
@@ -37,19 +37,30 @@ Felsworn:
 Venomancer:
 - Envenomed Weapons reminder button.
 
-Debug / utility commands:
-/minn profile
-/minn roles
-/minn mark
-/minn list
-/minn ml
+Main commands:
+/minn
+/minn help
+
+Raid Roll Helper commands:
 /minn roll [item]
 /minn roll 3 [item]
 /minn roll status
 /minn roll log
 /minn roll cancel
+/minn roll ml
+
+Most other controls are handled through the settings UI.
+Advanced/dev actions are under /minn debug.
 
 Changelog:
+
+0.1.18
+- Simplified public slash commands.
+- Kept /minn for settings and /minn roll for Raid Roll Helper.
+- Moved master-looter check to /minn roll ml.
+- Moved old utility/dev slash actions under /minn debug instead of advertising many top-level commands.
+- Removed Raid Roll Helper top-level slash hook and non-/minn roll aliases.
+- Added Raid Roll Helper UI buttons for master-looter check, status, log, cancel, duration, and channel.
 
 0.1.17
 - Added Raid Roll Helper under Universal.
