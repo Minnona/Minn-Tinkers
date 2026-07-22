@@ -13,6 +13,7 @@ Personal utility addon for World of Warcraft 3.3.5a / Ascension.
 - Per-character settings
 - Native Interface > AddOns settings pages
 - Smart dungeon rolls
+- Raid Roll Helper for master-looter MS/OS rolls
 
 ## Commands
 
@@ -26,6 +27,9 @@ Useful commands:
 - `/minn roles`
 - `/minn rolls`
 - `/minn rolls pause 60`
+- `/minn ml`
+- `/minn roll [item]`
+- `/minn roll 3 [item]`
 
 ## License
 
