@@ -2,7 +2,7 @@
 ## Title: Minn Tinkers
 ## Notes: Personal utility addon with toggleable quality-of-life modules.
 ## Author: Minn
-## Version: 0.1.17
+## Version: 0.1.18
 ## SavedVariables: MinnTinkersDB
 ## SavedVariablesPerCharacter: MinnTinkersCharDB
 
