@@ -3,7 +3,7 @@ Minn Tinkers
 
 Personal WoW 3.3.5a quality-of-life addon.
 
-Version: 0.1.16
+Version: 0.1.17
 License: GPL-3.0
 
 Install:
@@ -27,6 +27,7 @@ Universal:
 - Auto-sell grey items.
 - Auto-skip safe single-option gossip. Hold Shift while opening an NPC to bypass it for that interaction.
 - Smart dungeon rolls.
+- Raid Roll Helper for master-looter MS/OS rolls.
 - Mark tank with Star and healer with Moon from RDF/LFG role data.
 
 Felsworn:
@@ -36,13 +37,28 @@ Felsworn:
 Venomancer:
 - Envenomed Weapons reminder button.
 
-Debug commands:
+Debug / utility commands:
 /minn profile
 /minn roles
 /minn mark
 /minn list
+/minn ml
+/minn roll [item]
+/minn roll 3 [item]
+/minn roll status
+/minn roll log
+/minn roll cancel
 
 Changelog:
+
+0.1.17
+- Added Raid Roll Helper under Universal.
+- Auto-starts MS/OS rolls when master looter links exactly one item in raid/party chat.
+- Supports multi-copy rolls such as 3 [item], where the top 3 valid rolls win.
+- Accepts only the first valid roll per player and announces duplicate rolls.
+- Uses 10/5/3/2/1 countdown behavior.
+- Handles cutoff ties with named rerolls for the tied players and item.
+- Added /minn roll [item], /minn roll 3 [item], /minn roll status, /minn roll log, /minn roll cancel, and /minn ml.
 
 0.1.16
 - Fixed Universal page layout so wrapped text no longer overlaps nearby controls.
