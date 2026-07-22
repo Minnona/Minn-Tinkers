@@ -5,7 +5,7 @@ _G.MinnTinkers = MT
 
 MT.addonName = ADDON_NAME or "MinnTinkers"
 MT.displayName = "Minn Tinkers"
-MT.version = "0.1.16"
+MT.version = "0.1.18"
 MT.modules = {}
 MT.moduleOrder = {}
 MT.globalDB = nil
@@ -31,7 +31,6 @@ end
 function MT:Print(message)
     DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99Minn Tinkers:|r " .. tostring(message))
 end
-
 
 local function NormalizeText(text)
     text = tostring(text or "")
@@ -306,27 +305,99 @@ end
 function MT:ShowHelp()
     self:Print("Commands:")
     self:Print("/minn - open settings")
-    self:Print("/minn list - list modules")
-    self:Print("/minn sell - sell grey items at merchant")
-    self:Print("/minn gossip - try safe gossip skip on the current NPC")
-    self:Print("/minn rolls - print smart dungeon roll status")
-    self:Print("/minn rolls pause 60 - pause smart dungeon rolls for 60 seconds")
-    self:Print("/minn rolls resume - resume smart dungeon rolls")
-    self:Print("/minn mark - mark tank with Star and healer with Moon")
-    self:Print("/minn healer - alias for /minn mark")
-    self:Print("/minn roles - print RDF/LFG roles for current party")
-    self:Print("/minn profile - print detected class and class modules")
-    self:Print("/minn on AutoSellGrey")
-    self:Print("/minn off AutoSellGrey")
-    self:Print("/minn toggle AutoMarkRoles")
-    self:Print("/minn pact - show the Vengeful Pact button")
-    self:Print("/minn pactid 803882 - change configured pact spell ID")
-    self:Print("/minn intuition - show the Man'ari Intuition button")
-    self:Print("/minn intuitionname Man'ari Intuition - change configured Man'ari Intuition spell name")
-    self:Print("/minn intuitionthreshold 5 - show button when buff has 5 minutes or less")
-    self:Print("/minn poison - show the Envenomed Weapons button")
-    self:Print("/minn poisonname Envenomed Weapons - change configured poison buff spell name")
-    self:Print("/minn poisonthreshold 5 - show poison button when buff has 5 minutes or less")
+    self:Print("/minn help - show this help")
+    self:Print("/minn roll [item] - start Raid Roll Helper")
+    self:Print("/minn roll 3 [item] - start roll for multiple copies")
+    self:Print("/minn roll status | log | cancel | ml")
+end
+
+function MT:ShowDebugHelp()
+    self:Print("Debug commands are namespaced to avoid command clutter:")
+    self:Print("/minn debug list | profile | roles | mark")
+    self:Print("/minn debug sell | gossip")
+    self:Print("/minn debug pact | intuition | poison")
+    self:Print("/minn debug smartrolls status | pause 60 | resume")
+end
+
+function MT:HandleDebugCommand(message)
+    message = self:Trim(message)
+    local command, rest = string.match(message or "", "^(%S*)%s*(.-)$")
+    command = string.lower(command or "")
+    rest = self:Trim(rest)
+
+    if command == "" or command == "help" then
+        self:ShowDebugHelp()
+        return true
+    end
+
+    if command == "profile" or command == "char" or command == "class" then
+        self:PrintCharacterProfile()
+        return true
+    end
+
+    if command == "list" then
+        self:ListModules()
+        return true
+    end
+
+    if command == "sell" then
+        local module = self.modules.AutoSellGrey
+        if module and module.SellGreyItems then module:SellGreyItems(self, true) end
+        return true
+    end
+
+    if command == "gossip" or command == "skipgossip" then
+        local module = self.modules.AutoSkipGossip
+        if module and module.TrySkip then module:TrySkip(self, true) else self:Print("AutoSkipGossip module is not available.") end
+        return true
+    end
+
+    if command == "mark" or command == "healer" or command == "tank" then
+        local module = self.modules.AutoMarkRoles
+        if module and module.MarkRoles then module:MarkRoles(self, true) else self:Print("AutoMarkRoles module is not available.") end
+        return true
+    end
+
+    if command == "roles" then
+        local module = self.modules.AutoMarkRoles
+        if module and module.PrintRoles then module:PrintRoles(self) else self:Print("AutoMarkRoles module is not available.") end
+        return true
+    end
+
+    if command == "smartrolls" or command == "dungeonrolls" then
+        local module = self.modules.SmartDungeonRolls
+        if not module then self:Print("Smart Dungeon Rolls module is not available.") return true end
+
+        local subcommand, subrest = string.match(rest or "", "^(%S*)%s*(.-)$")
+        subcommand = string.lower(subcommand or "")
+        subrest = self:Trim(subrest)
+
+        if subcommand == "pause" then module:SetPaused(self, tonumber(subrest) or 60)
+        elseif subcommand == "resume" or subcommand == "unpause" then module:Resume(self)
+        else module:PrintStatus(self) end
+        return true
+    end
+
+    if command == "pact" then
+        local module = self.modules.VengefulPact
+        if module and module.ShowPactButton then module:ShowPactButton(self, true) else self:Print("Vengeful Pact module is not available.") end
+        return true
+    end
+
+    if command == "intuition" or command == "manari" then
+        local module = self.modules.ManariIntuition
+        if module and module.ShowBuffButton then module:ShowBuffButton(self, true) else self:Print("Man'ari Intuition module is not available.") end
+        return true
+    end
+
+    if command == "poison" or command == "envenomed" or command == "envenom" then
+        local module = self.modules.EnvenomedWeapons
+        if module and module.ShowBuffButton then module:ShowBuffButton(self, true) else self:Print("Envenomed Weapons module is not available.") end
+        return true
+    end
+
+    self:ShowDebugHelp()
+    return true
 end
 
 SLASH_MINNTINKERS1 = "/minn"
@@ -353,281 +424,18 @@ SlashCmdList["MINNTINKERS"] = function(message)
         return
     end
 
-    if command == "profile" or command == "char" or command == "class" then
-        MT:PrintCharacterProfile()
-        return
-    end
-
-    if command == "list" then
-        MT:ListModules()
-        return
-    end
-
-    if command == "on" or command == "off" or command == "toggle" then
-        local key = MT:GetModuleKey(rest)
-
-        if not key then
-            MT:Print("Unknown module: " .. tostring(rest))
-            MT:ListModules()
-            return
-        end
-
-        if command == "on" then
-            MT:SetModuleEnabled(key, true)
-            MT:Print(key .. " enabled.")
-        elseif command == "off" then
-            MT:SetModuleEnabled(key, false)
-            MT:Print(key .. " disabled.")
+    if command == "roll" then
+        local module = MT.modules.RaidRollHelper
+        if module and module.HandleRollCommand then
+            module:HandleRollCommand(MT, rest)
         else
-            local enabled = not MT:IsModuleEnabled(key)
-            MT:SetModuleEnabled(key, enabled)
-            MT:Print(key .. " " .. (enabled and "enabled." or "disabled."))
-        end
-
-        return
-    end
-
-    if command == "sell" then
-        local module = MT.modules.AutoSellGrey
-        if module and module.SellGreyItems then
-            module:SellGreyItems(MT, true)
+            MT:Print("Raid Roll Helper module is not available.")
         end
         return
     end
 
-    if command == "gossip" or command == "skipgossip" then
-        local module = MT.modules.AutoSkipGossip
-        if module and module.TrySkip then
-            module:TrySkip(MT, true)
-        else
-            MT:Print("AutoSkipGossip module is not available.")
-        end
-        return
-    end
-
-    if command == "rolls" or command == "lootrolls" or command == "smartrolls" then
-        local module = MT.modules.SmartDungeonRolls
-        if not module then
-            MT:Print("Smart Dungeon Rolls module is not available.")
-            return
-        end
-
-        local subcommand, subrest = string.match(rest or "", "^(%S*)%s*(.-)$")
-        subcommand = string.lower(subcommand or "")
-        subrest = MT:Trim(subrest)
-
-        if subcommand == "on" then
-            MT:SetModuleEnabled("SmartDungeonRolls", true)
-            MT:Print("SmartDungeonRolls enabled.")
-        elseif subcommand == "off" then
-            MT:SetModuleEnabled("SmartDungeonRolls", false)
-            MT:Print("SmartDungeonRolls disabled.")
-        elseif subcommand == "pause" then
-            module:SetPaused(MT, tonumber(subrest) or 60)
-        elseif subcommand == "resume" or subcommand == "unpause" then
-            module:Resume(MT)
-        elseif subcommand == "" or subcommand == "status" then
-            module:PrintStatus(MT)
-        else
-            MT:Print("Usage: /minn rolls, /minn rolls on, /minn rolls off, /minn rolls pause 60, /minn rolls resume")
-        end
-        return
-    end
-
-    if command == "rollpause" then
-        local module = MT.modules.SmartDungeonRolls
-        if module then
-            module:SetPaused(MT, tonumber(rest) or 60)
-        else
-            MT:Print("Smart Dungeon Rolls module is not available.")
-        end
-        return
-    end
-
-    if command == "rollresume" or command == "rollunpause" then
-        local module = MT.modules.SmartDungeonRolls
-        if module then
-            module:Resume(MT)
-        else
-            MT:Print("Smart Dungeon Rolls module is not available.")
-        end
-        return
-    end
-
-    if command == "mark" or command == "healer" or command == "tank" then
-        local module = MT.modules.AutoMarkRoles
-        if module and module.MarkRoles then
-            module:MarkRoles(MT, true)
-        else
-            MT:Print("AutoMarkRoles module is not available.")
-        end
-        return
-    end
-
-    if command == "roles" then
-        local module = MT.modules.AutoMarkRoles
-        if module and module.PrintRoles then
-            module:PrintRoles(MT)
-        else
-            MT:Print("AutoMarkRoles module is not available.")
-        end
-        return
-    end
-
-    if command == "pact" then
-        local module = MT.modules.VengefulPact
-        if module and module.ShowPactButton then
-            module:ShowPactButton(MT, true)
-        else
-            MT:Print("Vengeful Pact module is not available.")
-        end
-        return
-    end
-
-    if command == "pactid" then
-        local spellID = tonumber(rest)
-        local module = MT.modules.VengefulPact
-
-        if not spellID or spellID <= 0 then
-            MT:Print("Usage: /minn pactid 803882")
-            return
-        end
-
-        if module then
-            local db = MT:GetModuleDB("VengefulPact")
-            db.spellID = spellID
-
-            if GetSpellInfo then
-                local spellName = GetSpellInfo(spellID)
-                if spellName and spellName ~= "" then
-                    db.spellName = spellName
-                end
-            end
-
-            MT:Print("Vengeful Pact spell ID set to " .. tostring(spellID) .. ".")
-
-            if module.ShowPactButton then
-                module:ShowPactButton(MT, true)
-            end
-        else
-            MT:Print("Vengeful Pact module is not available.")
-        end
-        return
-    end
-
-
-    if command == "intuition" or command == "manari" then
-        local module = MT.modules.ManariIntuition
-        if module and module.ShowBuffButton then
-            module:ShowBuffButton(MT, true)
-        else
-            MT:Print("Man'ari Intuition module is not available.")
-        end
-        return
-    end
-
-    if command == "intuitionname" or command == "manariname" then
-        local module = MT.modules.ManariIntuition
-
-        if rest == "" then
-            MT:Print("Usage: /minn intuitionname Man'ari Intuition")
-            return
-        end
-
-        if module then
-            local db = MT:GetModuleDB("ManariIntuition")
-            db.spellName = rest
-            MT:Print("Man'ari Intuition spell name set to " .. tostring(rest) .. ".")
-
-            if module.ShowBuffButton then
-                module:ShowBuffButton(MT, true)
-            end
-        else
-            MT:Print("Man'ari Intuition module is not available.")
-        end
-        return
-    end
-
-    if command == "intuitionid" or command == "manariid" then
-        MT:Print("Man'ari Intuition now uses spell name, not spell ID. Use: /minn intuitionname Man'ari Intuition")
-        return
-    end
-
-    if command == "intuitionthreshold" or command == "manarithreshold" then
-        local minutes = tonumber(rest)
-        local module = MT.modules.ManariIntuition
-
-        if not minutes or minutes < 0 then
-            MT:Print("Usage: /minn intuitionthreshold 5")
-            return
-        end
-
-        if module then
-            local db = MT:GetModuleDB("ManariIntuition")
-            db.refreshThreshold = math.floor(minutes * 60)
-            MT:Print("Man'ari Intuition refresh threshold set to " .. tostring(minutes) .. " minute" .. (minutes == 1 and "." or "s."))
-
-            if module.ShowBuffButton then
-                module:ShowBuffButton(MT, true)
-            end
-        else
-            MT:Print("Man'ari Intuition module is not available.")
-        end
-        return
-    end
-
-    if command == "poison" or command == "envenomed" or command == "envenom" then
-        local module = MT.modules.EnvenomedWeapons
-        if module and module.ShowBuffButton then
-            module:ShowBuffButton(MT, true)
-        else
-            MT:Print("Envenomed Weapons module is not available.")
-        end
-        return
-    end
-
-    if command == "poisonname" or command == "envenomedname" then
-        local module = MT.modules.EnvenomedWeapons
-
-        if rest == "" then
-            MT:Print("Usage: /minn poisonname Envenomed Weapons")
-            return
-        end
-
-        if module then
-            local db = MT:GetModuleDB("EnvenomedWeapons")
-            db.spellName = rest
-            MT:Print("Envenomed Weapons spell name set to " .. tostring(rest) .. ".")
-
-            if module.ShowBuffButton then
-                module:ShowBuffButton(MT, true)
-            end
-        else
-            MT:Print("Envenomed Weapons module is not available.")
-        end
-        return
-    end
-
-    if command == "poisonthreshold" or command == "envenomedthreshold" then
-        local minutes = tonumber(rest)
-        local module = MT.modules.EnvenomedWeapons
-
-        if not minutes or minutes < 0 then
-            MT:Print("Usage: /minn poisonthreshold 5")
-            return
-        end
-
-        if module then
-            local db = MT:GetModuleDB("EnvenomedWeapons")
-            db.refreshThreshold = math.floor(minutes * 60)
-            MT:Print("Envenomed Weapons refresh threshold set to " .. tostring(minutes) .. " minute" .. (minutes == 1 and "." or "s."))
-
-            if module.ShowBuffButton then
-                module:ShowBuffButton(MT, true)
-            end
-        else
-            MT:Print("Envenomed Weapons module is not available.")
-        end
+    if command == "debug" or command == "dev" then
+        MT:HandleDebugCommand(rest)
         return
     end
 
