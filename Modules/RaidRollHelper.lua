@@ -84,6 +84,16 @@ local function unregister(frame, event)
     if frame and event then pcall(frame.UnregisterEvent, frame, event) end
 end
 
+local function cycle_value(value, values)
+    local index = 1
+    for i, item in ipairs(values) do
+        if item == value then index = i break end
+    end
+    index = index + 1
+    if index > table.getn(values) then index = 1 end
+    return values[index]
+end
+
 function module:GetDB(core)
     return core:GetModuleDB(self.key)
 end
@@ -170,7 +180,7 @@ function module:CanStart(core, manual)
         return false
     end
     if db.requireMasterLooter and not self:IsMasterLooter(core) then
-        if manual then core:Print("You are not detected as master looter. Use /minn ml to check.") end
+        if manual then core:Print("You are not detected as master looter. Use /minn roll ml to check.") end
         return false
     end
     return true
@@ -510,41 +520,88 @@ function module:Cancel(core)
     if self.frame then self.frame:SetScript("OnUpdate", nil) end
 end
 
-function module:StartFromText(core, text, manual)
-    local link, copies = self:ParseStartText(text)
-    if not link then if manual then core:Print("Usage: /minn roll [itemlink] or /minn roll 3 [itemlink]") end return false end
-    return self:StartRoll(core, link, copies, manual)
-end
-
-function module:HandleSlash(core, message)
+function module:HandleRollCommand(core, message)
     message = core:Trim(message)
-    local command, rest = string.match(message or "", "^(%S*)%s*(.-)$")
-    command = string.lower(command or "")
+    local subcommand, rest = string.match(message or "", "^(%S*)%s*(.-)$")
+    subcommand = string.lower(subcommand or "")
     rest = core:Trim(rest)
 
-    if command == "roll" or command == "raidroll" or command == "lootroll" then
-        local subcommand = string.lower((string.match(rest or "", "^(%S*)") or ""))
-        if subcommand == "" or subcommand == "status" then self:PrintStatus(core)
-        elseif subcommand == "cancel" or subcommand == "stop" then self:Cancel(core)
-        elseif subcommand == "log" then self:PrintLog(core)
-        elseif subcommand == "ml" or subcommand == "master" then self:PrintMasterLootStatus(core)
-        elseif subcommand == "on" then core:SetModuleEnabled("RaidRollHelper", true) core:Print("RaidRollHelper enabled.")
-        elseif subcommand == "off" then core:SetModuleEnabled("RaidRollHelper", false) core:Print("RaidRollHelper disabled.")
-        else self:StartFromText(core, rest, true) end
-        return true
-    end
-
-    if command == "ml" or command == "masterlooter" then self:PrintMasterLootStatus(core) return true end
-    return false
+    if subcommand == "" or subcommand == "status" then self:PrintStatus(core)
+    elseif subcommand == "cancel" or subcommand == "stop" then self:Cancel(core)
+    elseif subcommand == "log" then self:PrintLog(core)
+    elseif subcommand == "ml" or subcommand == "master" or subcommand == "masterlooter" then self:PrintMasterLootStatus(core)
+    elseif subcommand == "on" then core:SetModuleEnabled("RaidRollHelper", true) core:Print("Raid Roll Helper enabled.")
+    elseif subcommand == "off" then core:SetModuleEnabled("RaidRollHelper", false) core:Print("Raid Roll Helper disabled.")
+    else self:StartFromText(core, message, true) end
 end
 
-function module:InstallSlashHook(core)
-    if self.slashHooked then return end
-    self.slashHooked = true
-    local original = SlashCmdList and SlashCmdList["MINNTINKERS"]
-    SlashCmdList["MINNTINKERS"] = function(message)
-        if module:HandleSlash(core, message) then return end
-        if original then original(message) end
+function module:BuildOptions(core, panel, y)
+    core.optionControls[self.key] = core.optionControls[self.key] or {}
+    local controls = core.optionControls[self.key]
+    local db = self:GetDB(core)
+
+    local requireML = core:CreateCheckbox(panel, "MinnTinkers_RaidRollHelper_RequireML", "Require me to be master looter", "Require me to be master looter", "Prevents accidental raid roll starts unless you are detected as master looter.", 42, y, db.requireMasterLooter, function(checked) core:GetModuleDB(module.key).requireMasterLooter = checked end)
+    controls.requireMasterLooter = requireML
+    y = y - 28
+
+    local autoStart = core:CreateCheckbox(panel, "MinnTinkers_RaidRollHelper_AutoStart", "Auto-start when I link one item", "Auto-start when I link one item", "Only starts when your raid/party message is just an optional number plus exactly one item link.", 42, y, db.autoStart, function(checked) core:GetModuleDB(module.key).autoStart = checked end)
+    controls.autoStart = autoStart
+    y = y - 28
+
+    local duplicates = core:CreateCheckbox(panel, "MinnTinkers_RaidRollHelper_Duplicates", "Announce duplicate rolls", "Announce duplicate rolls", "First valid roll counts. Extra rolls are ignored and optionally announced.", 42, y, db.announceDuplicates, function(checked) core:GetModuleDB(module.key).announceDuplicates = checked end)
+    controls.announceDuplicates = duplicates
+    y = y - 28
+
+    local ties = core:CreateCheckbox(panel, "MinnTinkers_RaidRollHelper_Ties", "Auto-handle cutoff ties with rerolls", "Auto-handle cutoff ties with rerolls", "If a tie affects who wins, only tied players are asked to reroll.", 42, y, db.autoTieReroll, function(checked) core:GetModuleDB(module.key).autoTieReroll = checked end)
+    controls.autoTieReroll = ties
+    y = y - 34
+
+    local durationButton = core:CreateOptionButton(panel, "MinnTinkers_RaidRollHelper_Duration", "", 42, y, 220, 24, function()
+        local d = core:GetModuleDB(module.key)
+        d.duration = cycle_value(tonumber(d.duration) or 10, { 10, 15, 20, 30 })
+        core:RefreshOptions()
+    end)
+    controls.duration = durationButton
+
+    local channelButton = core:CreateOptionButton(panel, "MinnTinkers_RaidRollHelper_Channel", "", 272, y, 220, 24, function()
+        local d = core:GetModuleDB(module.key)
+        d.channel = cycle_value(d.channel or "auto", { "auto", "raid_warning", "raid", "party" })
+        core:RefreshOptions()
+    end)
+    controls.channel = channelButton
+    y = y - 34
+
+    core:CreateOptionButton(panel, "MinnTinkers_RaidRollHelper_CheckML", "Check master looter", 42, y, 150, 24, function() module:PrintMasterLootStatus(core) end)
+    core:CreateOptionButton(panel, "MinnTinkers_RaidRollHelper_Status", "Roll status", 202, y, 120, 24, function() module:PrintStatus(core) end)
+    core:CreateOptionButton(panel, "MinnTinkers_RaidRollHelper_Log", "Roll log", 332, y, 100, 24, function() module:PrintLog(core) end)
+    y = y - 34
+
+    core:CreateOptionButton(panel, "MinnTinkers_RaidRollHelper_Cancel", "Cancel active roll", 42, y, 150, 24, function() module:Cancel(core) end)
+    y = y - 34
+
+    core:CreateText(panel, "Chat command kept intentionally small: /minn roll [item], /minn roll 3 [item], /minn roll status, /minn roll log, /minn roll cancel.", 42, y, 520, "GameFontDisableSmall")
+    y = y - 34
+
+    return y
+end
+
+function module:RefreshOptions(core)
+    local controls = core.optionControls[self.key]
+    local db = self:GetDB(core)
+    if not controls or not db then return end
+
+    if controls.requireMasterLooter then controls.requireMasterLooter:SetChecked(db.requireMasterLooter and true or false) end
+    if controls.autoStart then controls.autoStart:SetChecked(db.autoStart and true or false) end
+    if controls.announceDuplicates then controls.announceDuplicates:SetChecked(db.announceDuplicates and true or false) end
+    if controls.autoTieReroll then controls.autoTieReroll:SetChecked(db.autoTieReroll and true or false) end
+
+    if controls.duration then controls.duration:SetText("Duration: " .. tostring(db.duration or 10) .. "s") end
+    if controls.channel then
+        local label = "Auto"
+        if db.channel == "raid_warning" then label = "Raid Warning"
+        elseif db.channel == "raid" then label = "Raid"
+        elseif db.channel == "party" then label = "Party" end
+        controls.channel:SetText("Channel: " .. label)
     end
 end
 
@@ -565,6 +622,4 @@ function module:OnDisable(core)
     self.active = nil
 end
 
-MT.version = "0.1.17"
-module:InstallSlashHook(MT)
 MT:RegisterModule("RaidRollHelper", module)
