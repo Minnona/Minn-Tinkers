@@ -1,5 +1,9 @@
 local MT = MinnTinkers
 
+local DEFAULT_DURATION = 15
+local MS_MAX = 100
+local OS_MAX = 99
+
 local module = {
     name = "Raid Roll Helper",
     desc = "Master-looter helper for MS/OS raid loot rolls with duplicate handling, tie rerolls, and multi-copy winners.",
@@ -8,7 +12,7 @@ local module = {
         enabled = true,
         requireMasterLooter = true,
         autoStart = true,
-        duration = 10,
+        duration = DEFAULT_DURATION,
         announceDuplicates = true,
         autoTieReroll = true,
         debug = false,
@@ -16,9 +20,6 @@ local module = {
         maxCopies = 10
     }
 }
-
-local MS_MAX = 100
-local OS_MAX = 99
 
 local function trim(text)
     text = tostring(text or "")
@@ -94,8 +95,19 @@ local function cycle_value(value, values)
     return values[index]
 end
 
+local function new_countdowns()
+    return { 15, 10, 5, 3, 2, 1 }
+end
+
 function module:GetDB(core)
-    return core:GetModuleDB(self.key)
+    local db = core:GetModuleDB(self.key)
+    if db and not db.defaultDurationMigratedTo15 then
+        if db.duration == nil or tonumber(db.duration) == 10 then
+            db.duration = DEFAULT_DURATION
+        end
+        db.defaultDurationMigratedTo15 = true
+    end
+    return db
 end
 
 function module:Debug(core, text)
@@ -192,7 +204,7 @@ function module:CountItemLinks(text)
     return count
 end
 
-function module:ParseStartText(text)
+function module:ParseStartText(core, text)
     text = trim(text)
     if text == "" or self:CountItemLinks(text) ~= 1 then return nil end
 
@@ -210,7 +222,7 @@ function module:ParseStartText(text)
         count = tonumber(n) or 1
     end
 
-    local db = self:GetDB(MT) or {}
+    local db = self:GetDB(core) or {}
     local maxCopies = tonumber(db.maxCopies) or 10
     if count < 1 then count = 1 end
     if count > maxCopies then count = maxCopies end
@@ -221,8 +233,8 @@ function module:StartRoll(core, link, copies, manual)
     if not self:CanStart(core, manual) then return false end
 
     copies = tonumber(copies) or 1
-    local duration = tonumber((self:GetDB(core) or {}).duration) or 10
-    if duration < 3 then duration = 10 end
+    local duration = tonumber((self:GetDB(core) or {}).duration) or DEFAULT_DURATION
+    if duration < 3 then duration = DEFAULT_DURATION end
 
     self.active = {
         item = link,
@@ -234,7 +246,7 @@ function module:StartRoll(core, link, copies, manual)
         rollsByPlayer = {},
         ignored = {},
         duplicateNotified = {},
-        countdowns = { 10, 5, 3, 2, 1 },
+        countdowns = new_countdowns(),
         countdownIndex = 1,
         reroll = false,
         baseWinners = {}
@@ -246,7 +258,7 @@ function module:StartRoll(core, link, copies, manual)
 end
 
 function module:StartFromText(core, text, manual)
-    local link, copies = self:ParseStartText(text)
+    local link, copies = self:ParseStartText(core, text)
     if not link then
         if manual then core:Print("Usage: /minn roll [itemlink] or /minn roll 3 [itemlink]") end
         return false
@@ -352,7 +364,9 @@ function module:GetBestSet(pool, slots, category)
 end
 
 function module:StartReroll(core, previous, tie, baseWinners)
-    local duration = tonumber((self:GetDB(core) or {}).duration) or 10
+    local duration = tonumber((self:GetDB(core) or {}).duration) or DEFAULT_DURATION
+    if duration < 3 then duration = DEFAULT_DURATION end
+
     local allowed = {}
     for _, roll in ipairs(tie.players or {}) do allowed[player_key(roll.player)] = true end
 
@@ -366,7 +380,7 @@ function module:StartReroll(core, previous, tie, baseWinners)
         rollsByPlayer = {},
         ignored = {},
         duplicateNotified = {},
-        countdowns = { 10, 5, 3, 2, 1 },
+        countdowns = new_countdowns(),
         countdownIndex = 1,
         reroll = true,
         category = tie.category,
@@ -486,7 +500,7 @@ function module:OnOutgoingChat(core, text, chatType)
     chatType = tostring(chatType or "")
     if chatType ~= "RAID" and chatType ~= "RAID_WARNING" and chatType ~= "PARTY" then return end
 
-    local link, copies = self:ParseStartText(text)
+    local link, copies = self:ParseStartText(core, text)
     if not link then return end
     if not self:CanStart(core, false) then self:Debug(core, "Auto-start blocked.") return end
     self:StartRoll(core, link, copies, false)
@@ -558,7 +572,7 @@ function module:BuildOptions(core, panel, y)
 
     local durationButton = core:CreateOptionButton(panel, "MinnTinkers_RaidRollHelper_Duration", "", 42, y, 220, 24, function()
         local d = core:GetModuleDB(module.key)
-        d.duration = cycle_value(tonumber(d.duration) or 10, { 10, 15, 20, 30 })
+        d.duration = cycle_value(tonumber(d.duration) or DEFAULT_DURATION, { 15, 20, 30, 10 })
         core:RefreshOptions()
     end)
     controls.duration = durationButton
@@ -595,7 +609,7 @@ function module:RefreshOptions(core)
     if controls.announceDuplicates then controls.announceDuplicates:SetChecked(db.announceDuplicates and true or false) end
     if controls.autoTieReroll then controls.autoTieReroll:SetChecked(db.autoTieReroll and true or false) end
 
-    if controls.duration then controls.duration:SetText("Duration: " .. tostring(db.duration or 10) .. "s") end
+    if controls.duration then controls.duration:SetText("Duration: " .. tostring(db.duration or DEFAULT_DURATION) .. "s") end
     if controls.channel then
         local label = "Auto"
         if db.channel == "raid_warning" then label = "Raid Warning"
@@ -606,6 +620,7 @@ function module:RefreshOptions(core)
 end
 
 function module:OnEnable(core)
+    self:GetDB(core)
     if not self.frame then
         self.frame = CreateFrame("Frame")
         self.frame:SetScript("OnEvent", function(_, event, text) if event == "CHAT_MSG_SYSTEM" then module:OnSystemMessage(core, text) end end)
