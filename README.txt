@@ -3,7 +3,7 @@ Minn Tinkers
 
 Personal WoW 3.3.5a quality-of-life addon.
 
-Version: 0.1.19
+Version: 0.1.20
 License: GPL-3.0
 
 Install:
@@ -29,6 +29,7 @@ Universal:
 - Smart dungeon rolls.
 - Raid Roll Helper for master-looter MS/OS rolls.
 - Wardrobe Auto-Accept for appearance collection confirmations.
+- Battleground Spoils Auto-Select for single stat-choice reward windows.
 - Mark tank with Star and healer with Moon from RDF/LFG role data.
 
 Felsworn:
@@ -54,6 +55,11 @@ Most other controls are handled through the settings UI.
 Advanced/dev actions are under /minn debug.
 
 Changelog:
+
+0.1.20
+- Added Battleground Spoils Auto-Select under Universal.
+- Auto-selects only when the Battleground Spoils window has exactly one real stat choice.
+- Ignores Nevermind/Goodbye style cancel options and does nothing if multiple stat options appear.
 
 0.1.19
 - Added Wardrobe Auto-Accept under Universal.
