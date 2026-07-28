@@ -3,7 +3,7 @@ Minn Tinkers
 
 Personal WoW 3.3.5a quality-of-life addon.
 
-Version: 0.1.18
+Version: 0.1.19
 License: GPL-3.0
 
 Install:
@@ -28,6 +28,7 @@ Universal:
 - Auto-skip safe single-option gossip. Hold Shift while opening an NPC to bypass it for that interaction.
 - Smart dungeon rolls.
 - Raid Roll Helper for master-looter MS/OS rolls.
+- Wardrobe Auto-Accept for appearance collection confirmations.
 - Mark tank with Star and healer with Moon from RDF/LFG role data.
 
 Felsworn:
@@ -53,6 +54,12 @@ Most other controls are handled through the settings UI.
 Advanced/dev actions are under /minn debug.
 
 Changelog:
+
+0.1.19
+- Added Wardrobe Auto-Accept under Universal.
+- Auto-accepts only the wardrobe appearance collection confirmation with soulbound and cannot-be-undone warning text.
+- Requires a recent Ctrl+Alt item click by default to avoid accepting unrelated soulbound prompts.
+- Updated Raid Roll Helper default roll duration to 15 seconds with 15/10/5/3/2/1 countdown behavior.
 
 0.1.18
 - Simplified public slash commands.
