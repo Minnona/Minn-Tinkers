@@ -2,7 +2,7 @@
 ## Title: Minn Tinkers
 ## Notes: Personal utility addon with toggleable quality-of-life modules.
 ## Author: Minn
-## Version: 0.1.18
+## Version: 0.1.19
 ## SavedVariables: MinnTinkersDB
 ## SavedVariablesPerCharacter: MinnTinkersCharDB
 
@@ -13,6 +13,7 @@ Modules\AutoSellGrey.lua
 Modules\AutoSkipGossip.lua
 Modules\SmartDungeonRolls.lua
 Modules\RaidRollHelper.lua
+Modules\WardrobeAutoAccept.lua
 Modules\AutoMarkRoles.lua
 Modules\VengefulPact.lua
 Modules\ManariIntuition.lua
