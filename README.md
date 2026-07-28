@@ -14,6 +14,7 @@ Personal utility addon for World of Warcraft 3.3.5a / Ascension.
 - Native Interface > AddOns settings pages
 - Smart dungeon rolls
 - Raid Roll Helper for master-looter MS/OS rolls
+- Wardrobe Auto-Accept for appearance collection confirmations
 
 ## Commands
 
