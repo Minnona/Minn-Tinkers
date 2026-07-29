@@ -116,11 +116,9 @@ end
 
 local function new_countdowns(duration)
     duration = tonumber(duration) or DEFAULT_DURATION
-
     local checkpoints = {}
     if duration > 10 then table.insert(checkpoints, 10) end
     if duration > 5 then table.insert(checkpoints, 5) end
-
     return checkpoints
 end
 
@@ -449,7 +447,11 @@ function module:GetBestSet(pool, slots, category)
     local sorted = copy_list(pool)
     self:SortRolls(sorted)
     if #sorted == 0 then return result end
-    if #sorted <= slots then result.winners = sorted return result end
+
+    if #sorted <= slots then
+        result.winners = sorted
+        return result
+    end
 
     local cutoff = sorted[slots].roll
     local above, tied = {}, {}
@@ -465,7 +467,9 @@ function module:GetBestSet(pool, slots, category)
         return result
     end
 
-    result.winners = sorted
+    for i = 1, slots do
+        if sorted[i] then table.insert(result.winners, sorted[i]) end
+    end
     return result
 end
 
