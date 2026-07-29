@@ -7,7 +7,7 @@ local OS_MAX = 99
 local module = {
     name = "Raid Roll Helper",
     desc = "Master-looter helper for MS/OS raid loot rolls with duplicate handling, tie rerolls, and multi-copy winners.",
-    category = "Universal",
+    category = "RaidRolls",
     defaults = {
         enabled = true,
         requireMasterLooter = true,
@@ -21,6 +21,16 @@ local module = {
         channel = "auto",
         maxCopies = 10
     }
+}
+
+local ROLL_WORDS = {
+    roll = true,
+    rolls = true,
+    rolling = true
+}
+
+local FILLER_WORDS = {
+    ["for"] = true
 }
 
 local function trim(text)
@@ -67,12 +77,11 @@ local function format_names(rolls)
     return table.concat(names, ", ")
 end
 
-local function format_winners(winners)
-    local parts = {}
-    for _, winner in ipairs(winners or {}) do
-        table.insert(parts, short_name(winner.player) .. " " .. tostring(winner.roll) .. " " .. tostring(winner.category))
+local function format_winner(winner, showCategory)
+    if showCategory then
+        return short_name(winner.player) .. " " .. tostring(winner.roll) .. " " .. tostring(winner.category)
     end
-    return table.concat(parts, "; ")
+    return short_name(winner.player) .. " " .. tostring(winner.roll)
 end
 
 local function is_raid()
@@ -113,6 +122,15 @@ local function new_countdowns(duration)
     if duration > 5 then table.insert(checkpoints, 5) end
 
     return checkpoints
+end
+
+local function parse_count_token(token)
+    token = lower(trim(token))
+    if token == "" then return nil end
+
+    local n = string.match(token, "^x(%d+)$") or string.match(token, "^(%d+)x$") or string.match(token, "^(%d+)$")
+    if not n then return nil end
+    return tonumber(n)
 end
 
 function module:GetDB(core)
@@ -273,19 +291,47 @@ function module:ParseStartText(core, text)
 
     before = trim(before)
     after = trim(after)
-    if after ~= "" then return nil end
-
-    local count = 1
-    if before ~= "" then
-        local n = string.match(before, "^(%d+)$") or string.match(before, "^(%d+)x$") or string.match(before, "^x(%d+)$")
-        if not n then return nil end
-        count = tonumber(n) or 1
-    end
 
     local db = self:GetDB(core) or {}
     local maxCopies = tonumber(db.maxCopies) or 10
+    local count = 1
+    local sawCount = false
+    local pendingX = false
+
+    local outside = lower(trim(before .. " " .. after))
+    outside = string.gsub(outside, "[,;:!%.%(%)]", " ")
+    outside = string.gsub(outside, "%s+", " ")
+    outside = trim(outside)
+
+    for token in string.gmatch(outside, "%S+") do
+        if pendingX then
+            local n = tonumber(token)
+            if not n or sawCount then return nil end
+            count = n
+            sawCount = true
+            pendingX = false
+        elseif token == "x" then
+            pendingX = true
+        elseif ROLL_WORDS[token] or FILLER_WORDS[token] then
+            -- Allowed roll wording.
+        else
+            local n = parse_count_token(token)
+            if n then
+                if sawCount then return nil end
+                count = n
+                sawCount = true
+            else
+                return nil
+            end
+        end
+    end
+
+    if pendingX then return nil end
+
+    count = tonumber(count) or 1
     if count < 1 then count = 1 end
     if count > maxCopies then count = maxCopies end
+
     return link, count
 end
 
@@ -370,7 +416,7 @@ function module:AcceptRoll(core, roll)
         local db = self:GetDB(core) or {}
         if db.announceDuplicates and not active.duplicateNotified[key] then
             active.duplicateNotified[key] = true
-            self:Send(core, short_name(roll.player) .. " rolled more than once. First roll " .. tostring(first.roll) .. " " .. tostring(first.category) .. " will be accepted.")
+            self:Send(core, short_name(roll.player) .. " rolled more than once. First roll " .. tostring(first.roll) .. " will be accepted.")
         end
         return
     end
@@ -423,6 +469,24 @@ function module:GetBestSet(pool, slots, category)
     return result
 end
 
+function module:ShouldShowCategories(active, winners)
+    if active and active.category == "OS" then return true end
+
+    for _, roll in ipairs((active and active.rolls) or {}) do
+        if roll.category == "OS" then return true end
+    end
+
+    for _, roll in ipairs((active and active.baseWinners) or {}) do
+        if roll.category == "OS" then return true end
+    end
+
+    for _, roll in ipairs(winners or {}) do
+        if roll.category == "OS" then return true end
+    end
+
+    return false
+end
+
 function module:StartReroll(core, previous, tie, baseWinners)
     local duration = tonumber((self:GetDB(core) or {}).duration) or DEFAULT_DURATION
     if duration < 3 then duration = DEFAULT_DURATION end
@@ -449,7 +513,8 @@ function module:StartReroll(core, previous, tie, baseWinners)
     }
 
     local rangeMax = tie.category == "OS" and OS_MAX or MS_MAX
-    self:Send(core, "Tie for " .. tostring(previous.item) .. ": " .. format_names(tie.players) .. " rolled " .. tostring(tie.roll) .. " " .. tostring(tie.category) .. ". Reroll 1-" .. tostring(rangeMax) .. " for " .. tostring(tie.slots) .. " " .. (tie.slots == 1 and "copy" or "copies") .. ".")
+    local categoryText = tie.category == "OS" and " OS" or ""
+    self:Send(core, "Tie for " .. tostring(previous.item) .. ": " .. format_names(tie.players) .. " rolled " .. tostring(tie.roll) .. categoryText .. ". Reroll 1-" .. tostring(rangeMax) .. " for " .. tostring(tie.slots) .. " " .. (tie.slots == 1 and "copy" or "copies") .. ".")
     self:EnsureTimer(core)
 end
 
@@ -462,16 +527,17 @@ function module:AnnounceFinal(core, active, winners)
         return
     end
 
+    local showCategory = self:ShouldShowCategories(active, winners)
+
     if #winners == 1 and active.copies == 1 then
         local winner = winners[1]
-        self:Send(core, "Winner " .. tostring(winner.category) .. ": " .. short_name(winner.player) .. " " .. tostring(winner.roll) .. " for " .. tostring(active.item) .. ".")
+        local prefix = showCategory and ("Winner " .. tostring(winner.category) .. ": ") or "Winner: "
+        self:Send(core, prefix .. format_winner(winner, false) .. " for " .. tostring(active.item) .. ".")
     else
-        local copiesText = (active.copies > 1 and (tostring(active.copies) .. "x ") or "")
-        local message = "Winners for " .. copiesText .. tostring(active.item) .. ": " .. format_winners(winners)
-        if #winners < active.copies then
-            message = message .. " (" .. tostring(#winners) .. "/" .. tostring(active.copies) .. " valid winners)"
+        self:Send(core, "Winners for " .. (active.copies > 1 and (tostring(active.copies) .. "x ") or "") .. tostring(active.item) .. ":")
+        for i, winner in ipairs(winners) do
+            self:Send(core, tostring(i) .. ". " .. format_winner(winner, showCategory))
         end
-        self:Send(core, message .. ".")
     end
 
     active.finalWinners = winners
@@ -634,15 +700,15 @@ function module:BuildOptions(core, panel, y)
     controls.requireMasterLooter = requireML
     y = y - 28
 
-    local autoStart = core:CreateCheckbox(panel, "MinnTinkers_RaidRollHelper_AutoStart", "Auto-start when I link one item", "Auto-start when I link one item", "Only starts when your raid/party message is just an optional number plus exactly one item link.", 42, y, db.autoStart, function(checked) core:GetModuleDB(module.key).autoStart = checked end)
+    local autoStart = core:CreateCheckbox(panel, "MinnTinkers_RaidRollHelper_AutoStart", "Auto-start when I link one item", "Auto-start when I link one item", "Starts when your raid/party message is a plain item link, roll plus item link, or count plus item link.", 42, y, db.autoStart, function(checked) core:GetModuleDB(module.key).autoStart = checked end)
     controls.autoStart = autoStart
     y = y - 28
 
-    local autoStartML = core:CreateCheckbox(panel, "MinnTinkers_RaidRollHelper_AutoStartML", "Auto-start from master looter item links", "Auto-start from master looter item links", "Tracks rolls when the detected master looter announces a plain item link or count plus item link in raid chat.", 42, y, db.autoStartFromMasterLooter, function(checked) core:GetModuleDB(module.key).autoStartFromMasterLooter = checked end)
+    local autoStartML = core:CreateCheckbox(panel, "MinnTinkers_RaidRollHelper_AutoStartML", "Auto-start from master looter item links", "Auto-start from master looter item links", "Tracks rolls when the detected master looter announces a plain item link, roll plus item link, or count plus item link in raid chat.", 42, y, db.autoStartFromMasterLooter, function(checked) core:GetModuleDB(module.key).autoStartFromMasterLooter = checked end)
     controls.autoStartFromMasterLooter = autoStartML
     y = y - 28
 
-    local autoStartLeader = core:CreateCheckbox(panel, "MinnTinkers_RaidRollHelper_AutoStartLeader", "Auto-start from raid leader item links", "Auto-start from raid leader item links", "Tracks rolls when the raid leader announces a plain item link or count plus item link in raid chat.", 42, y, db.autoStartFromRaidLeader, function(checked) core:GetModuleDB(module.key).autoStartFromRaidLeader = checked end)
+    local autoStartLeader = core:CreateCheckbox(panel, "MinnTinkers_RaidRollHelper_AutoStartLeader", "Auto-start from raid leader item links", "Auto-start from raid leader item links", "Tracks rolls when the raid leader announces a plain item link, roll plus item link, or count plus item link in raid chat.", 42, y, db.autoStartFromRaidLeader, function(checked) core:GetModuleDB(module.key).autoStartFromRaidLeader = checked end)
     controls.autoStartFromRaidLeader = autoStartLeader
     y = y - 28
 
@@ -677,7 +743,10 @@ function module:BuildOptions(core, panel, y)
     core:CreateOptionButton(panel, "MinnTinkers_RaidRollHelper_Cancel", "Cancel active roll", 42, y, 150, 24, function() module:Cancel(core) end)
     y = y - 34
 
-    core:CreateText(panel, "Chat command kept intentionally small: /minn roll [item], /minn roll 3 [item], /minn roll status, /minn roll log, /minn roll cancel.", 42, y, 520, "GameFontDisableSmall")
+    core:CreateText(panel, "Announcements use start/10s/5s/winner only. Winner categories are hidden unless someone used /roll 99.", 42, y, 520, "GameFontDisableSmall")
+    y = y - 34
+
+    core:CreateText(panel, "Supported starts: [item], roll [item], [item] roll, 2 [item], [item] x2 roll, roll [item] x2.", 42, y, 520, "GameFontDisableSmall")
     y = y - 34
 
     return y
