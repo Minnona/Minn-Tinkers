@@ -13,7 +13,7 @@ Personal utility addon for World of Warcraft 3.3.5a / Ascension.
 - Per-character settings
 - Native Interface > AddOns settings pages
 - Smart dungeon rolls
-- Raid Roll Helper for master-looter MS/OS rolls
+- Raid Roll Helper for compact master-looter MS/OS rolls, including trusted raid leader/master-looter item announcements
 - Wardrobe Auto-Accept for appearance collection confirmations
 - Battleground Spoils Auto-Select for single stat-choice reward windows
 
