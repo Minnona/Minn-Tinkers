@@ -3,7 +3,7 @@ Minn Tinkers
 
 Personal WoW 3.3.5a quality-of-life addon.
 
-Version: 0.1.20
+Version: 0.1.21
 License: GPL-3.0
 
 Install:
@@ -55,6 +55,14 @@ Most other controls are handled through the settings UI.
 Advanced/dev actions are under /minn debug.
 
 Changelog:
+
+0.1.21
+- Reduced Raid Roll Helper announcement spam.
+- Roll start now includes the 15s window, followed only by 10s and 5s countdown messages before the result.
+- Winner announcements are compact and only include winner/winners, not a multi-line winner list.
+- Removed extra OS fallback chatter from normal results.
+- Raid Roll Helper can now auto-start from trusted raid leader or master-looter item announcements.
+- Added UI toggles for master-looter and raid-leader announcement tracking.
 
 0.1.20
 - Added Battleground Spoils Auto-Select under Universal.
