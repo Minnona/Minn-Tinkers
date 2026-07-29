@@ -3,7 +3,7 @@ Minn Tinkers
 
 Personal WoW 3.3.5a quality-of-life addon.
 
-Version: 0.1.21
+Version: 0.1.22
 License: GPL-3.0
 
 Install:
@@ -19,6 +19,7 @@ Settings:
 - The addon uses native Interface > AddOns categories.
 - Expand Minn Tinkers with the + button to see:
   - Universal
+  - Raid Rolls
   - Felsworn
   - Venomancer
   - Debug
@@ -27,10 +28,14 @@ Universal:
 - Auto-sell grey items.
 - Auto-skip safe single-option gossip. Hold Shift while opening an NPC to bypass it for that interaction.
 - Smart dungeon rolls.
-- Raid Roll Helper for master-looter MS/OS rolls.
 - Wardrobe Auto-Accept for appearance collection confirmations.
 - Battleground Spoils Auto-Select for single stat-choice reward windows.
 - Mark tank with Star and healer with Moon from RDF/LFG role data.
+
+Raid Rolls:
+- Raid Roll Helper for master-looter MS/OS rolls.
+- Can track your own item links or trusted raid leader/master-looter item announcements.
+- Supports item start formats like [item], roll [item], [item] roll, 2 [item], [item] x2 roll, and roll [item] x2.
 
 Felsworn:
 - Vengeful Pact reminder button.
@@ -55,6 +60,13 @@ Most other controls are handled through the settings UI.
 Advanced/dev actions are under /minn debug.
 
 Changelog:
+
+0.1.22
+- Moved Raid Roll Helper into a separate Raid Rolls settings tab.
+- Restored multi-winner announcements to separate lines, but only for actual winners.
+- Winner announcements no longer show MS by default.
+- MS/OS labels are only shown when at least one /roll 99 OS roll exists for that item.
+- Added more roll-start parsing formats: roll [item], [item] roll, [item] x2 roll, roll [item] x2, and similar count/roll variations.
 
 0.1.21
 - Reduced Raid Roll Helper announcement spam.
