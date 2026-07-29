@@ -12,6 +12,8 @@ local module = {
         enabled = true,
         requireMasterLooter = true,
         autoStart = true,
+        autoStartFromMasterLooter = true,
+        autoStartFromRaidLeader = true,
         duration = DEFAULT_DURATION,
         announceDuplicates = true,
         autoTieReroll = true,
@@ -65,6 +67,14 @@ local function format_names(rolls)
     return table.concat(names, ", ")
 end
 
+local function format_winners(winners)
+    local parts = {}
+    for _, winner in ipairs(winners or {}) do
+        table.insert(parts, short_name(winner.player) .. " " .. tostring(winner.roll) .. " " .. tostring(winner.category))
+    end
+    return table.concat(parts, "; ")
+end
+
 local function is_raid()
     return GetNumRaidMembers and (GetNumRaidMembers() or 0) > 0
 end
@@ -95,8 +105,14 @@ local function cycle_value(value, values)
     return values[index]
 end
 
-local function new_countdowns()
-    return { 15, 10, 5, 3, 2, 1 }
+local function new_countdowns(duration)
+    duration = tonumber(duration) or DEFAULT_DURATION
+
+    local checkpoints = {}
+    if duration > 10 then table.insert(checkpoints, 10) end
+    if duration > 5 then table.insert(checkpoints, 5) end
+
+    return checkpoints
 end
 
 function module:GetDB(core)
@@ -177,7 +193,51 @@ function module:PrintMasterLootStatus(core)
     core:Print("Raw master values: party=" .. tostring(partyMaster) .. ", raid=" .. tostring(raidMaster) .. ".")
 end
 
-function module:CanStart(core, manual)
+function module:GetRaidMemberStatus(name)
+    local targetKey = player_key(name)
+    if targetKey == "" or not GetRaidRosterInfo or not GetNumRaidMembers then return nil, nil, false end
+
+    for i = 1, (GetNumRaidMembers() or 0) do
+        local raidName, rank, _, _, _, _, _, _, _, _, isML = GetRaidRosterInfo(i)
+        if raidName and player_key(raidName) == targetKey then
+            return raidName, tonumber(rank) or 0, isML and true or false
+        end
+    end
+
+    return nil, nil, false
+end
+
+function module:IsTrustedAnnouncer(core, sender)
+    local db = self:GetDB(core)
+    if not db then return false end
+
+    local senderKey = player_key(sender)
+    if senderKey == "" then return false end
+
+    local playerName = UnitName and UnitName("player") or nil
+    if playerName and senderKey == player_key(playerName) then
+        return false
+    end
+
+    local _, master = self:GetMasterLooterInfo()
+    if db.autoStartFromMasterLooter and master and master ~= "unknown" and player_key(master) == senderKey then
+        return true, "master looter"
+    end
+
+    local _, rank, isML = self:GetRaidMemberStatus(sender)
+
+    if db.autoStartFromMasterLooter and isML then
+        return true, "master looter"
+    end
+
+    if db.autoStartFromRaidLeader and rank == 2 then
+        return true, "raid leader"
+    end
+
+    return false
+end
+
+function module:CanStart(core, manual, allowWithoutMasterLooter)
     local db = self:GetDB(core)
     if not db or not db.enabled then
         if manual then core:Print("Raid Roll Helper is disabled.") end
@@ -191,7 +251,7 @@ function module:CanStart(core, manual)
         if manual then core:Print("A raid roll is already active. Use /minn roll cancel first.") end
         return false
     end
-    if db.requireMasterLooter and not self:IsMasterLooter(core) then
+    if db.requireMasterLooter and not allowWithoutMasterLooter and not self:IsMasterLooter(core) then
         if manual then core:Print("You are not detected as master looter. Use /minn roll ml to check.") end
         return false
     end
@@ -229,8 +289,8 @@ function module:ParseStartText(core, text)
     return link, count
 end
 
-function module:StartRoll(core, link, copies, manual)
-    if not self:CanStart(core, manual) then return false end
+function module:StartRoll(core, link, copies, manual, allowWithoutMasterLooter)
+    if not self:CanStart(core, manual, allowWithoutMasterLooter) then return false end
 
     copies = tonumber(copies) or 1
     local duration = tonumber((self:GetDB(core) or {}).duration) or DEFAULT_DURATION
@@ -246,13 +306,13 @@ function module:StartRoll(core, link, copies, manual)
         rollsByPlayer = {},
         ignored = {},
         duplicateNotified = {},
-        countdowns = new_countdowns(),
+        countdowns = new_countdowns(duration),
         countdownIndex = 1,
         reroll = false,
         baseWinners = {}
     }
 
-    self:Send(core, "Roll 1-100 MS / 1-99 OS for " .. (copies > 1 and (tostring(copies) .. "x ") or "") .. tostring(link) .. ".")
+    self:Send(core, "Roll 1-100 MS / 1-99 OS for " .. (copies > 1 and (tostring(copies) .. "x ") or "") .. tostring(link) .. ". " .. tostring(duration) .. "s.")
     self:EnsureTimer(core)
     return true
 end
@@ -263,7 +323,7 @@ function module:StartFromText(core, text, manual)
         if manual then core:Print("Usage: /minn roll [itemlink] or /minn roll 3 [itemlink]") end
         return false
     end
-    return self:StartRoll(core, link, copies, manual)
+    return self:StartRoll(core, link, copies, manual, false)
 end
 
 function module:ParseSystemRoll(text)
@@ -380,7 +440,7 @@ function module:StartReroll(core, previous, tie, baseWinners)
         rollsByPlayer = {},
         ignored = {},
         duplicateNotified = {},
-        countdowns = new_countdowns(),
+        countdowns = new_countdowns(duration),
         countdownIndex = 1,
         reroll = true,
         category = tie.category,
@@ -406,13 +466,12 @@ function module:AnnounceFinal(core, active, winners)
         local winner = winners[1]
         self:Send(core, "Winner " .. tostring(winner.category) .. ": " .. short_name(winner.player) .. " " .. tostring(winner.roll) .. " for " .. tostring(active.item) .. ".")
     else
-        self:Send(core, "Winners for " .. (active.copies > 1 and (tostring(active.copies) .. "x ") or "") .. tostring(active.item) .. ":")
-        for i, winner in ipairs(winners) do
-            self:Send(core, tostring(i) .. ". " .. short_name(winner.player) .. " " .. tostring(winner.roll) .. " " .. tostring(winner.category))
-        end
+        local copiesText = (active.copies > 1 and (tostring(active.copies) .. "x ") or "")
+        local message = "Winners for " .. copiesText .. tostring(active.item) .. ": " .. format_winners(winners)
         if #winners < active.copies then
-            self:Send(core, "Only " .. tostring(#winners) .. " valid winner" .. (#winners == 1 and "" or "s") .. " for " .. tostring(active.copies) .. " copies.")
+            message = message .. " (" .. tostring(#winners) .. "/" .. tostring(active.copies) .. " valid winners)"
         end
+        self:Send(core, message .. ".")
     end
 
     active.finalWinners = winners
@@ -451,11 +510,9 @@ function module:FinishRoll(core)
         if osResult.tie and (self:GetDB(core) or {}).autoTieReroll then
             local base = copy_list(winners)
             append_list(base, osResult.winners)
-            if #ms == 0 then self:Send(core, "No MS rolls for " .. tostring(active.item) .. ". Checking OS rolls.") end
             self:StartReroll(core, active, osResult.tie, base)
             return
         end
-        if #ms == 0 and #osResult.winners > 0 then self:Send(core, "No MS rolls for " .. tostring(active.item) .. ". Using OS rolls.") end
         append_list(winners, osResult.winners)
     end
 
@@ -471,7 +528,7 @@ function module:OnUpdate(core)
     while active.countdowns and active.countdowns[active.countdownIndex] do
         local checkpoint = active.countdowns[active.countdownIndex]
         if remaining <= checkpoint then
-            self:Send(core, tostring(checkpoint) .. "...")
+            self:Send(core, tostring(checkpoint) .. "s...")
             active.countdownIndex = active.countdownIndex + 1
         else
             break
@@ -502,8 +559,27 @@ function module:OnOutgoingChat(core, text, chatType)
 
     local link, copies = self:ParseStartText(core, text)
     if not link then return end
-    if not self:CanStart(core, false) then self:Debug(core, "Auto-start blocked.") return end
-    self:StartRoll(core, link, copies, false)
+    if not self:CanStart(core, false, false) then self:Debug(core, "Auto-start blocked.") return end
+    self:StartRoll(core, link, copies, false, false)
+end
+
+function module:OnIncomingChat(core, event, text, sender)
+    local db = self:GetDB(core)
+    if not db or not db.enabled or self.active then return end
+
+    if event ~= "CHAT_MSG_RAID" and event ~= "CHAT_MSG_RAID_WARNING" then return end
+
+    local link, copies = self:ParseStartText(core, text)
+    if not link then return end
+
+    local trusted, reason = self:IsTrustedAnnouncer(core, sender)
+    if not trusted then
+        self:Debug(core, "Ignored item link from non-trusted announcer: " .. tostring(sender))
+        return
+    end
+
+    self:Debug(core, "Starting from " .. tostring(reason or "trusted announcer") .. ": " .. tostring(sender))
+    self:StartRoll(core, link, copies, false, true)
 end
 
 function module:PrintStatus(core)
@@ -554,12 +630,20 @@ function module:BuildOptions(core, panel, y)
     local controls = core.optionControls[self.key]
     local db = self:GetDB(core)
 
-    local requireML = core:CreateCheckbox(panel, "MinnTinkers_RaidRollHelper_RequireML", "Require me to be master looter", "Require me to be master looter", "Prevents accidental raid roll starts unless you are detected as master looter.", 42, y, db.requireMasterLooter, function(checked) core:GetModuleDB(module.key).requireMasterLooter = checked end)
+    local requireML = core:CreateCheckbox(panel, "MinnTinkers_RaidRollHelper_RequireML", "Require me to be master looter for my own starts", "Require me to be master looter for my own starts", "Prevents your own/manual raid roll starts unless you are detected as master looter. Trusted raid leader/master-looter announcements can still be tracked.", 42, y, db.requireMasterLooter, function(checked) core:GetModuleDB(module.key).requireMasterLooter = checked end)
     controls.requireMasterLooter = requireML
     y = y - 28
 
     local autoStart = core:CreateCheckbox(panel, "MinnTinkers_RaidRollHelper_AutoStart", "Auto-start when I link one item", "Auto-start when I link one item", "Only starts when your raid/party message is just an optional number plus exactly one item link.", 42, y, db.autoStart, function(checked) core:GetModuleDB(module.key).autoStart = checked end)
     controls.autoStart = autoStart
+    y = y - 28
+
+    local autoStartML = core:CreateCheckbox(panel, "MinnTinkers_RaidRollHelper_AutoStartML", "Auto-start from master looter item links", "Auto-start from master looter item links", "Tracks rolls when the detected master looter announces a plain item link or count plus item link in raid chat.", 42, y, db.autoStartFromMasterLooter, function(checked) core:GetModuleDB(module.key).autoStartFromMasterLooter = checked end)
+    controls.autoStartFromMasterLooter = autoStartML
+    y = y - 28
+
+    local autoStartLeader = core:CreateCheckbox(panel, "MinnTinkers_RaidRollHelper_AutoStartLeader", "Auto-start from raid leader item links", "Auto-start from raid leader item links", "Tracks rolls when the raid leader announces a plain item link or count plus item link in raid chat.", 42, y, db.autoStartFromRaidLeader, function(checked) core:GetModuleDB(module.key).autoStartFromRaidLeader = checked end)
+    controls.autoStartFromRaidLeader = autoStartLeader
     y = y - 28
 
     local duplicates = core:CreateCheckbox(panel, "MinnTinkers_RaidRollHelper_Duplicates", "Announce duplicate rolls", "Announce duplicate rolls", "First valid roll counts. Extra rolls are ignored and optionally announced.", 42, y, db.announceDuplicates, function(checked) core:GetModuleDB(module.key).announceDuplicates = checked end)
@@ -606,6 +690,8 @@ function module:RefreshOptions(core)
 
     if controls.requireMasterLooter then controls.requireMasterLooter:SetChecked(db.requireMasterLooter and true or false) end
     if controls.autoStart then controls.autoStart:SetChecked(db.autoStart and true or false) end
+    if controls.autoStartFromMasterLooter then controls.autoStartFromMasterLooter:SetChecked(db.autoStartFromMasterLooter and true or false) end
+    if controls.autoStartFromRaidLeader then controls.autoStartFromRaidLeader:SetChecked(db.autoStartFromRaidLeader and true or false) end
     if controls.announceDuplicates then controls.announceDuplicates:SetChecked(db.announceDuplicates and true or false) end
     if controls.autoTieReroll then controls.autoTieReroll:SetChecked(db.autoTieReroll and true or false) end
 
@@ -623,9 +709,19 @@ function module:OnEnable(core)
     self:GetDB(core)
     if not self.frame then
         self.frame = CreateFrame("Frame")
-        self.frame:SetScript("OnEvent", function(_, event, text) if event == "CHAT_MSG_SYSTEM" then module:OnSystemMessage(core, text) end end)
+        self.frame:SetScript("OnEvent", function(_, event, text, sender)
+            if event == "CHAT_MSG_SYSTEM" then
+                module:OnSystemMessage(core, text)
+            else
+                module:OnIncomingChat(core, event, text, sender)
+            end
+        end)
     end
+
     register(self.frame, "CHAT_MSG_SYSTEM")
+    register(self.frame, "CHAT_MSG_RAID")
+    register(self.frame, "CHAT_MSG_RAID_WARNING")
+
     if not self.hooked and hooksecurefunc and SendChatMessage then
         self.hooked = true
         hooksecurefunc("SendChatMessage", function(text, chatType) if module.enabled then module:OnOutgoingChat(core, text, chatType) end end)
@@ -633,7 +729,12 @@ function module:OnEnable(core)
 end
 
 function module:OnDisable(core)
-    if self.frame then unregister(self.frame, "CHAT_MSG_SYSTEM") self.frame:SetScript("OnUpdate", nil) end
+    if self.frame then
+        unregister(self.frame, "CHAT_MSG_SYSTEM")
+        unregister(self.frame, "CHAT_MSG_RAID")
+        unregister(self.frame, "CHAT_MSG_RAID_WARNING")
+        self.frame:SetScript("OnUpdate", nil)
+    end
     self.active = nil
 end
 
