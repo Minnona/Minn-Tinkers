@@ -13,7 +13,9 @@ Personal utility addon for World of Warcraft 3.3.5a / Ascension.
 - Per-character settings
 - Native Interface > AddOns settings pages
 - Smart dungeon rolls
-- Raid Roll Helper for compact master-looter MS/OS rolls, including trusted raid leader/master-looter item announcements
+- Raid Roll Helper in its own Raid Rolls settings tab
+- Raid Roll Helper supports trusted raid leader/master-looter item announcements
+- Raid Roll Helper supports start formats like `roll [item]`, `[item] roll`, `[item] x2 roll`, and `roll [item] x2`
 - Wardrobe Auto-Accept for appearance collection confirmations
 - Battleground Spoils Auto-Select for single stat-choice reward windows
 
