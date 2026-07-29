@@ -6,6 +6,11 @@ local OPTION_CATEGORIES = {
         label = "Universal",
         desc = "Shared tools that make sense on every character."
     },
+    RaidRolls = {
+        key = "RaidRolls",
+        label = "Raid Rolls",
+        desc = "Master-looter roll tracking and raid loot announcement tools."
+    },
     Felsworn = {
         key = "Felsworn",
         label = "Felsworn",
@@ -23,7 +28,7 @@ local OPTION_CATEGORIES = {
     }
 }
 
-local OPTION_ORDER = { "Universal", "Felsworn", "Venomancer", "Debug" }
+local OPTION_ORDER = { "Universal", "RaidRolls", "Felsworn", "Venomancer", "Debug" }
 
 local function SetTooltip(owner, title, text)
     if not owner then return end
@@ -242,7 +247,7 @@ function MT:BuildDebugPage(page)
 
     y = y - 44
 
-    self:CreateText(page, "Commands: /minn profile, /minn roles, /minn mark, /minn list", 16, y, 520, "GameFontDisableSmall")
+    self:CreateText(page, "Commands: /minn debug profile, /minn debug roles, /minn debug mark, /minn debug list", 16, y, 520, "GameFontDisableSmall")
     y = y - 30
 
     page:SetHeight(math.abs(y) + 40)
@@ -265,7 +270,9 @@ function MT:BuildParentPanel(panel)
     self:CreateText(panel, "Sections:", 16, y, 560, "GameFontNormal")
     y = y - 24
 
-    self:CreateText(panel, "Universal - auto-sell and tank/healer role markers", 28, y, 560, "GameFontHighlightSmall")
+    self:CreateText(panel, "Universal - general quality-of-life helpers", 28, y, 560, "GameFontHighlightSmall")
+    y = y - 20
+    self:CreateText(panel, "Raid Rolls - master-looter roll tracking and announcements", 28, y, 560, "GameFontHighlightSmall")
     y = y - 20
     self:CreateText(panel, "Felsworn - Vengeful Pact and Man'ari Intuition", 28, y, 560, "GameFontHighlightSmall")
     y = y - 20
