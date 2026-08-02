@@ -3,7 +3,7 @@ Minn Tinkers
 
 Personal WoW 3.3.5a quality-of-life addon.
 
-Version: 0.1.22
+Version: 0.1.24
 License: GPL-3.0
 
 Install:
@@ -30,6 +30,7 @@ Universal:
 - Smart dungeon rolls.
 - Wardrobe Auto-Accept for appearance collection confirmations.
 - Battleground Spoils Auto-Select for single stat-choice reward windows.
+- Popup Guard for protected invites, summons, resurrection, dungeon/LFG, and battleground queue popups.
 - Mark tank with Star and healer with Moon from RDF/LFG role data.
 
 Raid Rolls:
@@ -60,6 +61,16 @@ Most other controls are handled through the settings UI.
 Advanced/dev actions are under /minn debug.
 
 Changelog:
+
+0.1.24
+- Added Popup Guard under Universal.
+- Prevents Escape from cancelling allowlisted StaticPopup dialogs for group invites, summons, resurrection, dungeon/LFG, and battleground queue popups.
+- Popup Guard does not auto-accept anything and does not globally block Escape.
+- Added per-category toggles plus optional popup-ID debug printing.
+
+0.1.23
+- Fixed Raid Roll Helper winner selection so normal one-copy rolls only announce the top winner.
+- Multi-copy rolls now announce only the top N winners.
 
 0.1.22
 - Moved Raid Roll Helper into a separate Raid Rolls settings tab.
