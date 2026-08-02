@@ -18,6 +18,7 @@ Personal utility addon for World of Warcraft 3.3.5a / Ascension.
 - Raid Roll Helper supports start formats like `roll [item]`, `[item] roll`, `[item] x2 roll`, and `roll [item] x2`
 - Wardrobe Auto-Accept for appearance collection confirmations
 - Battleground Spoils Auto-Select for single stat-choice reward windows
+- Popup Guard to stop Escape from accidentally cancelling protected invites, summons, resurrection, and queue popups
 
 ## Commands
 
