@@ -3,7 +3,7 @@ Minn Tinkers
 
 Personal WoW 3.3.5a quality-of-life addon.
 
-Version: 0.1.26
+Version: 0.1.27
 License: GPL-3.0
 
 Install:
@@ -25,6 +25,7 @@ Settings:
   - Debug
 
 Universal:
+- Frog minimap button for opening settings.
 - Auto-sell grey items.
 - Auto-skip safe single-option gossip. Hold Shift while opening an NPC to bypass it for that interaction.
 - Smart dungeon rolls.
@@ -62,6 +63,13 @@ Most other controls are handled through the settings UI.
 Advanced/dev actions are under /minn debug.
 
 Changelog:
+
+0.1.27
+- Added a frog minimap button under Universal.
+- Left-click opens Minn Tinkers settings.
+- Drag moves the button around the minimap.
+- Right-click locks or unlocks the button position.
+- Added a settings checkbox for locking and a reset-position button.
 
 0.1.26
 - Added Zul'Gurub green/blue Need override for Smart Dungeon Rolls.
