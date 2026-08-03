@@ -104,12 +104,8 @@ if smartRolls and not smartRolls.zgNeedPatchApplied then
                 core:GetModuleDB(smartRolls.key).needGreenBlueInZG = checked
             end
         )
-        resultY = resultY - 30
 
-        local helpText = core:CreateText(panel, "ZG override is narrow: only Zul'Gurub, only green/blue quality, only Need when available.", 42, resultY, 520, "GameFontDisableSmall")
-        resultY = resultY - math.ceil((helpText:GetStringHeight() or 24) + 12)
-
-        return resultY
+        return resultY - 30
     end
 
     local originalRefreshOptions = smartRolls.RefreshOptions
