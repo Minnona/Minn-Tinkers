@@ -668,6 +668,8 @@ function module:BuildOptions(core, panel, y)
     core.optionControls[self.key] = core.optionControls[self.key] or {}
     local controls = core.optionControls[self.key]
     local db = self:GetDB(core)
+    local buttonX = 42
+    local buttonWidth = 450
 
     local dungeons = core:CreateCheckbox(
         panel,
@@ -704,19 +706,19 @@ function module:BuildOptions(core, panel, y)
     core:CreateText(panel, "Equipment", 42, y, 500, "GameFontNormal")
     y = y - 24
 
-    local greenBlueButton = core:CreateOptionButton(panel, "MinnTinkers_SmartRolls_GreenBlue", "", 42, y, 450, 24, function()
+    local greenBlueButton = core:CreateOptionButton(panel, "MinnTinkers_SmartRolls_GreenBlue", "", buttonX, y, buttonWidth, 24, function()
         module:CycleValue(core, "greenBlueMode", { "de", "greed", "pass", "manual" })
     end)
     controls.greenBlueMode = greenBlueButton
     y = y - 30
 
-    local fallbackButton = core:CreateOptionButton(panel, "MinnTinkers_SmartRolls_NoDEFallback", "", 62, y, 430, 24, function()
+    local fallbackButton = core:CreateOptionButton(panel, "MinnTinkers_SmartRolls_NoDEFallback", "", buttonX, y, buttonWidth, 24, function()
         module:CycleValue(core, "noDisenchantFallback", { "greed", "pass", "manual" })
     end)
     controls.noDisenchantFallback = fallbackButton
     y = y - 30
 
-    local purpleButton = core:CreateOptionButton(panel, "MinnTinkers_SmartRolls_Purple", "", 42, y, 450, 24, function()
+    local purpleButton = core:CreateOptionButton(panel, "MinnTinkers_SmartRolls_Purple", "", buttonX, y, buttonWidth, 24, function()
         module:CycleValue(core, "purpleMode", { "manual", "de_unusable", "greed_unusable", "pass_unusable" })
     end)
     controls.purpleMode = purpleButton
@@ -741,7 +743,7 @@ function module:BuildOptions(core, panel, y)
     controls.needUsableRecipes = needRecipes
     y = y - 30
 
-    local recipeFallback = core:CreateOptionButton(panel, "MinnTinkers_SmartRolls_RecipeFallback", "", 42, y, 450, 24, function()
+    local recipeFallback = core:CreateOptionButton(panel, "MinnTinkers_SmartRolls_RecipeFallback", "", buttonX, y, buttonWidth, 24, function()
         module:CycleValue(core, "recipeFallback", { "greed", "pass", "manual" })
     end)
     controls.recipeFallback = recipeFallback
@@ -750,13 +752,13 @@ function module:BuildOptions(core, panel, y)
     core:CreateText(panel, "Lockboxes and other drops", 42, y, 500, "GameFontNormal")
     y = y - 24
 
-    local lockboxButton = core:CreateOptionButton(panel, "MinnTinkers_SmartRolls_Lockboxes", "", 42, y, 450, 24, function()
+    local lockboxButton = core:CreateOptionButton(panel, "MinnTinkers_SmartRolls_Lockboxes", "", buttonX, y, buttonWidth, 24, function()
         module:CycleValue(core, "lockboxMode", { "greed", "pass", "need_lockpicking", "manual" })
     end)
     controls.lockboxMode = lockboxButton
     y = y - 30
 
-    local otherButton = core:CreateOptionButton(panel, "MinnTinkers_SmartRolls_Other", "", 42, y, 450, 24, function()
+    local otherButton = core:CreateOptionButton(panel, "MinnTinkers_SmartRolls_Other", "", buttonX, y, buttonWidth, 24, function()
         module:CycleValue(core, "otherMode", { "manual", "greed", "pass" })
     end)
     controls.otherMode = otherButton
@@ -776,9 +778,6 @@ function module:BuildOptions(core, panel, y)
         end
     )
     controls.printDecisions = debug
-    y = y - 30
-
-    core:CreateText(panel, "Commands: /minn rolls, /minn rolls pause 60, /minn rolls resume", 42, y, 500, "GameFontDisableSmall")
     y = y - 30
 
     return y
