@@ -2,7 +2,7 @@ local MT = MinnTinkers
 
 local module = {
     name = "Battleground Spoils Auto-Select",
-    desc = "Automatically selects the only real stat choice from Battleground Spoils gossip windows.",
+    desc = "Automatically selects the only real reward choice from Battleground Spoils gossip windows.",
     category = "Universal",
     defaults = {
         enabled = true,
@@ -12,14 +12,6 @@ local module = {
 }
 
 local SPOILS_TITLE = "battleground spoils"
-
-local STAT_WORDS = {
-    strength = true,
-    agility = true,
-    stamina = true,
-    intellect = true,
-    spirit = true
-}
 
 local CANCEL_WORDS = {
     ["nevermind"] = true,
@@ -137,18 +129,10 @@ function module:IsCancelOption(text)
     return CANCEL_WORDS[text] and true or false
 end
 
-function module:IsStatOption(text)
-    text = lower(clean_option(text))
-    text = string.gsub(text, "[%p%c]", "")
-    text = trim(text)
-    return STAT_WORDS[text] and true or false
-end
-
 function module:GetSpoilsChoices()
-    local statChoices = {}
-    local unknownChoices = {}
+    local choices = {}
 
-    if not GetGossipOptions then return statChoices, unknownChoices end
+    if not GetGossipOptions then return choices end
 
     local options = { GetGossipOptions() }
     for i = 1, table.getn(options), 2 do
@@ -156,18 +140,12 @@ function module:GetSpoilsChoices()
         local optionIndex = math.floor((i + 1) / 2)
         local cleaned = clean_option(text)
 
-        if cleaned and cleaned ~= "" then
-            if self:IsCancelOption(cleaned) then
-                -- Ignore close/cancel options.
-            elseif self:IsStatOption(cleaned) then
-                table.insert(statChoices, { index = optionIndex, text = cleaned })
-            else
-                table.insert(unknownChoices, { index = optionIndex, text = cleaned })
-            end
+        if cleaned and cleaned ~= "" and not self:IsCancelOption(cleaned) then
+            table.insert(choices, { index = optionIndex, text = cleaned })
         end
     end
 
-    return statChoices, unknownChoices
+    return choices
 end
 
 function module:TrySelect(core)
@@ -177,10 +155,10 @@ function module:TrySelect(core)
     if not SelectGossipOption then return true end
     if not self:IsSpoilsWindow() then return true end
 
-    local statChoices, unknownChoices = self:GetSpoilsChoices()
+    local choices = self:GetSpoilsChoices()
 
-    if table.getn(statChoices) == 1 and table.getn(unknownChoices) == 0 then
-        local choice = statChoices[1]
+    if table.getn(choices) == 1 then
+        local choice = choices[1]
         pcall(SelectGossipOption, choice.index)
         return true
     end
