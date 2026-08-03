@@ -12,7 +12,7 @@ Personal utility addon for World of Warcraft 3.3.5a / Ascension.
 - Buff reminder buttons
 - Per-character settings
 - Native Interface > AddOns settings pages
-- Smart dungeon rolls
+- Smart dungeon rolls, including a Zul'Gurub green/blue Need override
 - Raid Roll Helper in its own Raid Rolls settings tab
 - Raid Roll Helper supports trusted raid leader/master-looter item announcements
 - Raid Roll Helper supports start formats like `roll [item]`, `[item] roll`, `[item] x2 roll`, and `roll [item] x2`
