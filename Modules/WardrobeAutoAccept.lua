@@ -7,7 +7,6 @@ local module = {
     defaults = {
         enabled = true,
         requireRecentModifiedClick = true,
-        printAccepted = false,
         windowSeconds = 2.0,
         scanSeconds = 2.0,
         scanInterval = 0.05
@@ -125,16 +124,6 @@ function module:GetAcceptButton(frame)
     return button
 end
 
-function module:GetItemText(text)
-    local link = string.match(tostring(text or ""), "(|c%x+|Hitem:.-|h%[.-%]|h|r)")
-    if link then return link end
-
-    local item = string.match(tostring(text or ""), "collect the appearance of%s+(.+)%?")
-    if item and item ~= "" then return item end
-
-    return "appearance"
-end
-
 function module:AcceptMatchingPopup(core)
     local db = self:GetDB(core)
     if not db or not db.enabled then return false end
@@ -145,16 +134,13 @@ function module:AcceptMatchingPopup(core)
 
     for i = 1, 4 do
         local frame = _G["StaticPopup" .. tostring(i)]
-        local matches, text = self:PopupMatches(frame)
+        local matches = self:PopupMatches(frame)
         if matches then
             local button = self:GetAcceptButton(frame)
             if button and button.Click then
                 local ok = pcall(button.Click, button)
                 if ok then
                     self.recentModifiedClickUntil = nil
-                    if db.printAccepted then
-                        core:Print("Accepted wardrobe collection for " .. tostring(self:GetItemText(text)) .. ".")
-                    end
                     return true
                 end
             end
@@ -274,28 +260,8 @@ function module:BuildOptions(core, panel, y)
         end
     )
     controls.requireRecentModifiedClick = requireClick
-    y = y - 28
 
-    local printAccepted = core:CreateCheckbox(
-        panel,
-        "MinnTinkers_WardrobeAutoAccept_PrintAccepted",
-        "Print accepted wardrobe items",
-        "Print accepted wardrobe items",
-        "Shows a chat message when a wardrobe appearance confirmation is accepted automatically.",
-        42,
-        y,
-        db.printAccepted,
-        function(checked)
-            core:GetModuleDB(module.key).printAccepted = checked
-        end
-    )
-    controls.printAccepted = printAccepted
-    y = y - 30
-
-    local help = core:CreateText(panel, "Only accepts the specific wardrobe popup containing appearance collection, soulbound warning, and cannot-be-undone text.", 42, y, 520, "GameFontDisableSmall")
-    y = y - math.ceil((help:GetStringHeight() or 24) + 12)
-
-    return y
+    return y - 28
 end
 
 function module:RefreshOptions(core)
@@ -304,7 +270,6 @@ function module:RefreshOptions(core)
     if not controls or not db then return end
 
     if controls.requireRecentModifiedClick then controls.requireRecentModifiedClick:SetChecked(db.requireRecentModifiedClick and true or false) end
-    if controls.printAccepted then controls.printAccepted:SetChecked(db.printAccepted and true or false) end
 end
 
 MT:RegisterModule("WardrobeAutoAccept", module)
