@@ -6,7 +6,6 @@ local module = {
     category = "Universal",
     defaults = {
         enabled = true,
-        printSelected = false,
         scanSeconds = 1.0,
         scanInterval = 0.05
     }
@@ -182,15 +181,8 @@ function module:TrySelect(core)
 
     if table.getn(statChoices) == 1 and table.getn(unknownChoices) == 0 then
         local choice = statChoices[1]
-        local ok = pcall(SelectGossipOption, choice.index)
-        if ok and db.printSelected then
-            core:Print("Selected Battleground Spoils stat: " .. tostring(choice.text) .. ".")
-        end
+        pcall(SelectGossipOption, choice.index)
         return true
-    end
-
-    if db.printSelected and table.getn(statChoices) > 1 then
-        core:Print("Battleground Spoils has multiple stat choices. Select one manually.")
     end
 
     return true
@@ -285,41 +277,10 @@ function module:OnDisable(core)
 end
 
 function module:BuildOptions(core, panel, y)
-    core.optionControls[self.key] = core.optionControls[self.key] or {}
-    local controls = core.optionControls[self.key]
-    local db = self:GetDB(core)
-
-    local printSelected = core:CreateCheckbox(
-        panel,
-        "MinnTinkers_BattlegroundSpoils_PrintSelected",
-        "Print selected spoils stat",
-        "Print selected spoils stat",
-        "Shows a chat line when Battleground Spoils Auto-Select chooses the only available stat option.",
-        42,
-        y,
-        db.printSelected,
-        function(checked)
-            core:GetModuleDB(module.key).printSelected = checked
-        end
-    )
-
-    controls.printSelected = printSelected
-    y = y - 30
-
-    local helpText = core:CreateText(panel, "Only works on Battleground Spoils. It ignores Nevermind/Goodbye and only selects when exactly one real stat choice is visible.", 42, y, 520, "GameFontDisableSmall")
-    y = y - math.ceil((helpText:GetStringHeight() or 24) + 12)
-
     return y
 end
 
 function module:RefreshOptions(core)
-    local controls = core.optionControls[self.key]
-    local db = self:GetDB(core)
-    if not controls or not db then return end
-
-    if controls.printSelected then
-        controls.printSelected:SetChecked(db.printSelected and true or false)
-    end
 end
 
 MT:RegisterModule("BattlegroundSpoils", module)
