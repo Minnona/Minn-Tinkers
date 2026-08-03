@@ -23,15 +23,8 @@ local module = {
     }
 }
 
-local ROLL_WORDS = {
-    roll = true,
-    rolls = true,
-    rolling = true
-}
-
-local FILLER_WORDS = {
-    ["for"] = true
-}
+local ROLL_WORDS = { roll = true, rolls = true, rolling = true }
+local FILLER_WORDS = { ["for"] = true }
 
 local function trim(text)
     text = tostring(text or "")
@@ -745,9 +738,6 @@ function module:BuildOptions(core, panel, y)
     y = y - 34
 
     core:CreateOptionButton(panel, "MinnTinkers_RaidRollHelper_Cancel", "Cancel active roll", 42, y, 150, 24, function() module:Cancel(core) end)
-    y = y - 34
-
-    core:CreateText(panel, "Announcements use start/10s/5s/winner only. Winner categories are hidden unless someone used /roll 99.", 42, y, 520, "GameFontDisableSmall")
     y = y - 34
 
     core:CreateText(panel, "Supported starts: [item], roll [item], [item] roll, 2 [item], [item] x2 roll, roll [item] x2.", 42, y, 520, "GameFontDisableSmall")
