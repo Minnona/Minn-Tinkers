@@ -5,8 +5,7 @@ local module = {
     desc = "Safely skips boring NPC gossip when there is exactly one gossip option and no quest options. Hold Shift while opening an NPC to bypass it for that interaction.",
     category = "Universal",
     defaults = {
-        enabled = true,
-        printSkipped = false
+        enabled = true
     }
 }
 
@@ -103,7 +102,6 @@ function module:TrySkip(core, manual)
         return
     end
 
-    local db = self:GetDB(core)
     local optionText = self:GetFirstOptionText()
     local ok, err = pcall(SelectGossipOption, 1)
 
@@ -114,9 +112,7 @@ function module:TrySkip(core, manual)
         return
     end
 
-    if db and db.printSkipped then
-        core:Print("Skipped gossip" .. (optionText and (": " .. optionText) or "."))
-    elseif manual then
+    if manual then
         core:Print("Skipped one safe gossip option" .. (optionText and (": " .. optionText) or "."))
     end
 end
@@ -157,44 +153,10 @@ function module:OnDisable(core)
 end
 
 function module:BuildOptions(core, panel, y)
-    core.optionControls[self.key] = core.optionControls[self.key] or {}
-
-    local printSkipped = core:CreateCheckbox(
-        panel,
-        "MinnTinkers_AutoSkipGossip_PrintSkipped",
-        "Print skipped gossip line",
-        "Print skipped gossip line",
-        "Shows a chat message when Minn Tinkers auto-selects a safe gossip option.",
-        42,
-        y,
-        core:GetModuleDB(self.key).printSkipped,
-        function(checked)
-            core:GetModuleDB(module.key).printSkipped = checked
-        end
-    )
-
-    core.optionControls[self.key].printSkipped = printSkipped
-    y = y - 30
-
-    local helpText = core:CreateText(panel, "Safe mode: only skips when there is exactly one gossip option and no quest options. Hold Shift while opening/talking to an NPC to bypass it for that interaction.", 42, y, 520, "GameFontDisableSmall")
-    y = y - math.ceil((helpText:GetStringHeight() or 24) + 12)
-
-    core:CreateOptionButton(panel, "MinnTinkers_AutoSkipGossip_TryNow", "Try current gossip", 42, y, 180, 24, function()
-        module:TrySkip(core, true)
-    end)
-
-    return y - 38
+    return y
 end
 
 function module:RefreshOptions(core)
-    local controls = core.optionControls[self.key]
-    local db = core:GetModuleDB(self.key)
-
-    if not controls or not db then return end
-
-    if controls.printSkipped then
-        controls.printSkipped:SetChecked(db.printSkipped and true or false)
-    end
 end
 
 MT:RegisterModule("AutoSkipGossip", module)
