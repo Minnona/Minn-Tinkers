@@ -222,9 +222,6 @@ function module:BuildOptions(core, panel, y)
     end)
     y = y - 34
 
-    local helpText = core:CreateText(panel, "Uses the built-in frog-style Hex icon. Left-click opens settings; drag moves it; right-click locks/unlocks it.", 42, y, 520, "GameFontDisableSmall")
-    y = y - math.ceil((helpText:GetStringHeight() or 24) + 12)
-
     return y
 end
 
