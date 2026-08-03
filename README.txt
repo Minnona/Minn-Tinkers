@@ -3,7 +3,7 @@ Minn Tinkers
 
 Personal WoW 3.3.5a quality-of-life addon.
 
-Version: 0.1.24
+Version: 0.1.26
 License: GPL-3.0
 
 Install:
@@ -28,6 +28,7 @@ Universal:
 - Auto-sell grey items.
 - Auto-skip safe single-option gossip. Hold Shift while opening an NPC to bypass it for that interaction.
 - Smart dungeon rolls.
+- Zul'Gurub green/blue Need override for Smart Dungeon Rolls.
 - Wardrobe Auto-Accept for appearance collection confirmations.
 - Battleground Spoils Auto-Select for single stat-choice reward windows.
 - Popup Guard for protected invites, summons, resurrection, dungeon/LFG, and battleground queue popups.
@@ -61,6 +62,16 @@ Most other controls are handled through the settings UI.
 Advanced/dev actions are under /minn debug.
 
 Changelog:
+
+0.1.26
+- Added Zul'Gurub green/blue Need override for Smart Dungeon Rolls.
+- The override rolls Need on green or blue items inside Zul'Gurub when Need is available.
+- This works even when general raid auto-rolls are disabled.
+- Added a Universal settings checkbox for the ZG override.
+
+0.1.25
+- Normalized Smart Dungeon Rolls option button widths.
+- Mode buttons now align to the same left edge and width.
 
 0.1.24
 - Added Popup Guard under Universal.
