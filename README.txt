@@ -3,7 +3,7 @@ Minn Tinkers
 
 Personal WoW 3.3.5a quality-of-life addon.
 
-Version: 0.1.27
+Version: 0.1.28
 License: GPL-3.0
 
 Install:
@@ -63,6 +63,11 @@ Most other controls are handled through the settings UI.
 Advanced/dev actions are under /minn debug.
 
 Changelog:
+
+0.1.28
+- Removed redundant grey footnotes from crowded Universal settings sections.
+- Removed the extra Raid Rolls announcement footnote while keeping supported-start examples.
+- Existing hover tooltips still describe the settings.
 
 0.1.27
 - Added a frog minimap button under Universal.
