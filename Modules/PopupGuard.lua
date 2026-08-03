@@ -232,9 +232,6 @@ function module:BuildOptions(core, panel, y)
     )
     y = y - 34
 
-    local helpText = core:CreateText(panel, "Popup Guard only changes allowlisted StaticPopup dialogs. It does not globally block Escape and does not auto-accept anything.", 42, y, 520, "GameFontDisableSmall")
-    y = y - math.ceil((helpText:GetStringHeight() or 24) + 12)
-
     return y
 end
 
