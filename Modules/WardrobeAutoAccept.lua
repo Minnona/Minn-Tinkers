@@ -6,7 +6,6 @@ local module = {
     category = "Universal",
     defaults = {
         enabled = true,
-        requireRecentModifiedClick = true,
         windowSeconds = 2.0,
         scanSeconds = 2.0,
         scanInterval = 0.05
@@ -61,10 +60,7 @@ function module:OnContainerClick(core)
     end
 end
 
-function module:RecentlyModifiedClicked(core)
-    local db = self:GetDB(core)
-    if not db or not db.requireRecentModifiedClick then return true end
-
+function module:RecentlyModifiedClicked()
     local untilTime = tonumber(self.recentModifiedClickUntil) or 0
     return untilTime > 0 and now() <= untilTime
 end
@@ -105,7 +101,7 @@ function module:PopupMatches(frame)
         end
     end
 
-    return true, text
+    return true
 end
 
 function module:GetAcceptButton(frame)
@@ -128,14 +124,14 @@ function module:AcceptMatchingPopup(core)
     local db = self:GetDB(core)
     if not db or not db.enabled then return false end
 
-    if not self:RecentlyModifiedClicked(core) then
+    -- Always require a recent Ctrl+Alt item click. This is the main safety guard.
+    if not self:RecentlyModifiedClicked() then
         return false
     end
 
     for i = 1, 4 do
         local frame = _G["StaticPopup" .. tostring(i)]
-        local matches = self:PopupMatches(frame)
-        if matches then
+        if self:PopupMatches(frame) then
             local button = self:GetAcceptButton(frame)
             if button and button.Click then
                 local ok = pcall(button.Click, button)
@@ -242,34 +238,10 @@ function module:OnDisable(core)
 end
 
 function module:BuildOptions(core, panel, y)
-    core.optionControls[self.key] = core.optionControls[self.key] or {}
-    local controls = core.optionControls[self.key]
-    local db = self:GetDB(core)
-
-    local requireClick = core:CreateCheckbox(
-        panel,
-        "MinnTinkers_WardrobeAutoAccept_RequireClick",
-        "Require recent Ctrl+Alt item click",
-        "Require recent Ctrl+Alt item click",
-        "Only auto-accepts wardrobe confirmations shortly after you Ctrl+Alt+Click an item from your bags.",
-        42,
-        y,
-        db.requireRecentModifiedClick,
-        function(checked)
-            core:GetModuleDB(module.key).requireRecentModifiedClick = checked
-        end
-    )
-    controls.requireRecentModifiedClick = requireClick
-
-    return y - 28
+    return y
 end
 
 function module:RefreshOptions(core)
-    local controls = core.optionControls[self.key]
-    local db = self:GetDB(core)
-    if not controls or not db then return end
-
-    if controls.requireRecentModifiedClick then controls.requireRecentModifiedClick:SetChecked(db.requireRecentModifiedClick and true or false) end
 end
 
 MT:RegisterModule("WardrobeAutoAccept", module)
