@@ -7,10 +7,11 @@ local DISCOVERY_INTERVAL = 0.25
 
 local module = {
     name = "Battleground flag-carrier tools",
-    desc = "Shows clickable flag-carrier names beside Blizzard's battleground objectives and marks friendly/enemy carriers.",
+    desc = "Shows clickable flag-carrier names, marks friendly/enemy carriers, and can automatically release your spirit in battlegrounds.",
     category = "PvP",
     defaults = {
         enabled = true,
+        autoRelease = true,
         showCarrierNames = true,
         clickToTarget = true,
         markFriendly = true,
@@ -664,6 +665,19 @@ function module:OnSystemMessage(core, text)
     self:ScheduleRefresh(core, 0)
 end
 
+function module:TryAutoRelease(core)
+    local db = core and core.GetModuleDB and core:GetModuleDB(self.key) or self.defaults
+    db = db or self.defaults
+
+    if db.autoRelease == false or not in_battleground() then return false end
+    if UnitIsGhost and UnitIsGhost("player") then return false end
+    if UnitIsDead and not UnitIsDead("player") then return false end
+    if type(RepopMe) ~= "function" then return false end
+
+    local released = pcall(RepopMe)
+    return released and true or false
+end
+
 function module:OnEvent(core, event, ...)
     if self.disableCleanupPending and event == "PLAYER_REGEN_ENABLED" then
         self.disableCleanupPending = false
@@ -676,6 +690,11 @@ function module:OnEvent(core, event, ...)
         if self.displayPending then self:CreateDisplay() end
         self:ApplyPendingSecure()
         self:ScheduleRefresh(core, 0)
+        return
+    end
+
+    if event == "PLAYER_DEAD" then
+        self:TryAutoRelease(core)
         return
     end
 
@@ -707,6 +726,7 @@ local EVENTS = {
     "PLAYER_ENTERING_WORLD",
     "PLAYER_ENTERING_BATTLEGROUND",
     "ZONE_CHANGED_NEW_AREA",
+    "PLAYER_DEAD",
     "CHAT_MSG_BG_SYSTEM_ALLIANCE",
     "CHAT_MSG_BG_SYSTEM_HORDE",
     "CHAT_MSG_BG_SYSTEM_NEUTRAL",
@@ -764,6 +784,22 @@ function module:BuildOptions(core, panel, y)
     core.optionControls[self.key] = core.optionControls[self.key] or {}
     local controls = core.optionControls[self.key]
     local db = core:GetModuleDB(self.key)
+
+    local autoRelease = core:CreateCheckbox(
+        panel,
+        "MinnTinkers_BattlegroundsPvP_AutoRelease",
+        "Automatically release spirit in battlegrounds",
+        "Automatically release spirit",
+        "Immediately releases your spirit after death in a battleground. Does not run in arenas, dungeons, raids, or the open world.",
+        42,
+        y,
+        db.autoRelease,
+        function(checked)
+            core:GetModuleDB(module.key).autoRelease = checked
+        end
+    )
+    controls.autoRelease = autoRelease
+    y = y - 30
 
     local showCarrierNames = core:CreateCheckbox(
         panel,
@@ -840,6 +876,7 @@ function module:RefreshOptions(core)
     local db = core:GetModuleDB(self.key)
     if not controls or not db then return end
 
+    if controls.autoRelease then controls.autoRelease:SetChecked(db.autoRelease and true or false) end
     if controls.showCarrierNames then controls.showCarrierNames:SetChecked(db.showCarrierNames and true or false) end
     if controls.clickToTarget then controls.clickToTarget:SetChecked(db.clickToTarget and true or false) end
     if controls.markFriendly then controls.markFriendly:SetChecked(db.markFriendly and true or false) end

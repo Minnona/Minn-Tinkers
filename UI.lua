@@ -19,7 +19,7 @@ local OPTION_CATEGORIES = {
     PvP = {
         key = "PvP",
         label = "PvP",
-        desc = "Battleground flag-carrier tracking, targeting, and marking tools."
+        desc = "Battleground flag-carrier tracking, targeting, marking, and auto-release tools."
     },
     Felsworn = {
         key = "Felsworn",
@@ -286,7 +286,7 @@ function MT:BuildParentPanel(panel)
     y = y - 20
     self:CreateText(panel, "Raid Lockouts - account-wide raid save snapshots", 28, y, 560, "GameFontHighlightSmall")
     y = y - 20
-    self:CreateText(panel, "PvP - battleground flag-carrier tracking and marking", 28, y, 560, "GameFontHighlightSmall")
+    self:CreateText(panel, "PvP - battleground flag-carrier tools and auto-release", 28, y, 560, "GameFontHighlightSmall")
     y = y - 20
     self:CreateText(panel, "Felsworn - Vengeful Pact and Man'ari Intuition", 28, y, 560, "GameFontHighlightSmall")
     y = y - 20

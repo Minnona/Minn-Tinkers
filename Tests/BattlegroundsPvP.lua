@@ -133,4 +133,38 @@ assert(friendlySlot.visual.shown and not friendlySlot.action.mouse, "name-only m
 captured:SetSlot(friendlySlot, nil)
 assert(not friendlySlot.action.mouse, "empty secure target still intercepted clicks")
 
+local instanceType = "pvp"
+local playerDead = true
+local playerGhost = false
+local releaseCalls = 0
+IsInInstance = function() return true, instanceType end
+UnitIsDead = function() return playerDead end
+UnitIsGhost = function() return playerGhost end
+RepopMe = function() releaseCalls = releaseCalls + 1 end
+
+local releaseSettings = { autoRelease = true }
+local releaseCore = {
+    GetModuleDB = function() return releaseSettings end
+}
+
+captured:OnEvent(releaseCore, "PLAYER_DEAD")
+assert(releaseCalls == 1, "PLAYER_DEAD did not call RepopMe exactly once in a battleground")
+
+releaseSettings.autoRelease = false
+assert(not captured:TryAutoRelease(releaseCore), "disabled auto-release still released")
+assert(releaseCalls == 1, "disabled auto-release called RepopMe")
+
+releaseSettings.autoRelease = true
+instanceType = "arena"
+assert(not captured:TryAutoRelease(releaseCore), "arena death was treated as a battleground death")
+instanceType = "party"
+assert(not captured:TryAutoRelease(releaseCore), "dungeon death was treated as a battleground death")
+instanceType = "pvp"
+playerGhost = true
+assert(not captured:TryAutoRelease(releaseCore), "an existing ghost was released again")
+playerGhost = false
+playerDead = false
+assert(not captured:TryAutoRelease(releaseCore), "a living player was auto-released")
+assert(releaseCalls == 1, "excluded release cases called RepopMe")
+
 print("BattlegroundsPvP tests passed")

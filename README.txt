@@ -3,7 +3,7 @@ Minn Tinkers
 
 Personal WoW 3.3.5a quality-of-life addon.
 
-Version: 0.1.36
+Version: 0.1.37
 License: GPL-3.0
 
 Install:
@@ -50,8 +50,9 @@ Raid Lockouts:
 - Offline data is labeled with its last scan time because offline characters cannot be queried directly.
 
 PvP:
+- Automatically releases your spirit after death in battlegrounds when enabled.
 - Shows friendly and enemy flag-carrier names beside the matching Blizzard flag-status rows.
-- Separate settings control name display, click targeting, friendly Square marking, and enemy Skull marking.
+- Separate settings control auto-release, name display, click targeting, friendly Square marking, and enemy Skull marking.
 - Click a ready carrier name to target that player when visible.
 - Marks the friendly flag carrier with Square and the enemy flag carrier with Skull when unit access and permissions allow.
 
@@ -78,6 +79,10 @@ Most other controls are handled through the settings UI.
 Advanced/dev actions are under /minn debug.
 
 Changelog:
+
+0.1.37
+- Added a default-on PvP option to automatically release your spirit after death in battlegrounds.
+- Auto-release does not run in arenas, dungeons, raids, or the open world.
 
 0.1.36
 - Added an Auto-mark Roles option to remember the dungeon's Star/Moon players through Mythic+ activation.

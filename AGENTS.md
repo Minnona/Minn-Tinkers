@@ -308,7 +308,7 @@ Stores account-wide character snapshots under `MinnTinkersDB.raidLockouts`. Scan
 
 Own tab: **PvP**.
 
-Shows friendly/enemy flag-carrier names beside the matching Blizzard flag-status rows. The PvP page exposes name display, click targeting, friendly Square marking, and enemy Skull marking as separate default-on settings. Target buttons must use secure actions and fail closed while a changed carrier is combat-locked. Clear only markers the module verified it applied. Detection must remain event-driven with bounded discovery retries.
+Shows friendly/enemy flag-carrier names beside the matching Blizzard flag-status rows. The PvP page exposes battleground auto-release, name display, click targeting, friendly Square marking, and enemy Skull marking as separate default-on settings. Auto-release must run only from `PLAYER_DEAD` while `IsInInstance()` reports `pvp`. Target buttons must use secure actions and fail closed while a changed carrier is combat-locked. Clear only markers the module verified it applied. Detection must remain event-driven with bounded discovery retries.
 
 ### WardrobeAutoAccept.lua
 
@@ -407,7 +407,7 @@ Future polish target: avoid permanent `OnUpdate`; only run while pending, visibl
 Current expected version after latest handoff:
 
 ```text
-0.1.36
+0.1.37
 ```
 
 When changing files, bump TOC version only when it is a real user-facing patch. Keep README/README.txt in sync if doing a release-style update.
