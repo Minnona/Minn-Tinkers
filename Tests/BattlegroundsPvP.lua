@@ -31,6 +31,16 @@ assert(captured:ParseSystemMessage("The battle begins in one minute.") == nil, "
 assert(captured:ExtractWorldStateCarrier("Flag carrier: Friendlyone") == "Friendlyone", "carrier tooltip was not parsed")
 assert(captured:ExtractWorldStateCarrier("Status: At base") == nil, "base tooltip was accepted")
 
+local allianceFlagIcon = {}
+AlwaysUpFrame1DynamicIconButton = allianceFlagIcon
+GetNumWorldStateUI = function() return 1 end
+GetWorldStateUIInfo = function()
+    return 1, 2, "0/3", "Interface\\WorldStateFrame\\AllianceFlag", "", "", "Flag carrier: Enemyone", ""
+end
+captured.carriers = {}
+assert(captured:ScanWorldStates(), "carrier world-state row was not detected")
+assert(captured.carriers.Alliance and captured.carriers.Alliance.worldStateAnchor == allianceFlagIcon, "carrier was not tied to the matching Blizzard flag icon")
+
 local raidIcon = 8
 local markerCalls = 0
 UnitExists = function(unit) return unit == "target" end
@@ -52,12 +62,21 @@ assert(markerCalls == 1 and owned.markerIcon == 8 and raidIcon == 8, "Skull was 
 captured:ClearCarrierMarker(owned)
 assert(markerCalls == 2 and raidIcon == 0, "owned Skull was not cleared")
 
+local noMarkCore = {
+    GetModuleDB = function() return { markFriendly = false, markEnemy = false } end
+}
+markerCalls = 0
+raidIcon = 0
+assert(captured:TryMarkCarrier({ name = "Enemyone" }, "enemy", noMarkCore), "disabled enemy marking kept discovery pending")
+assert(markerCalls == 0 and raidIcon == 0, "disabled enemy marking still applied Skull")
+
 local combat = true
-local function new_region()
-    local region = { shown = true, mouse = true, level = 1, attributes = {} }
+local function new_region(name)
+    local region = { name = name, shown = true, mouse = true, level = 1, attributes = {} }
     function region:SetWidth() end
     function region:SetHeight() end
-    function region:SetPoint() end
+    function region:SetPoint(...) self.point = { ... } end
+    function region:ClearAllPoints() self.point = nil end
     function region:RegisterForClicks() end
     function region:SetFrameStrata() end
     function region:SetFrameLevel(level) self.level = level end
@@ -85,22 +104,33 @@ combat = false
 assert(captured:CreateDisplay() and captured.slots, "secure display was not created after combat")
 
 local friendlySlot = captured.slots.friendly
-captured:SetSlot(friendlySlot, "Friendlyone")
+local firstFlagIcon = new_region("AlwaysUpFrame2DynamicIconButton")
+local secondFlagIcon = new_region("AlwaysUpFrame3DynamicIconButton")
+captured:SetSlot(friendlySlot, "Friendlyone", firstFlagIcon, true)
 assert(friendlySlot.readyName == "Friendlyone", "friendly secure target was not prepared")
 assert(friendlySlot.action.attributes.macrotext == "/targetexact Friendlyone", "friendly target macro was incorrect")
 assert(friendlySlot.action.mouse, "ready secure target was not clickable")
+assert(friendlySlot.action.point[2] == firstFlagIcon, "carrier target was not anchored beside the Blizzard flag icon")
 
 combat = true
-captured:SetSlot(friendlySlot, "Friendlytwo")
+captured:SetSlot(friendlySlot, "Friendlytwo", secondFlagIcon, true)
 assert(friendlySlot.readyName == "Friendlyone", "secure target changed during combat")
 assert(friendlySlot.visual.mouse, "stale secure target was not blocked")
+assert(friendlySlot.visual.point[2] == secondFlagIcon, "carrier label did not move to its new Blizzard flag row")
+assert(friendlySlot.action.point[2] == firstFlagIcon, "secure target moved during combat")
+assert(friendlySlot.blocker.shown and friendlySlot.blocker.mouse, "old secure target location was not blocked")
 
 combat = false
 captured:ApplyPendingSecure()
 assert(friendlySlot.readyName == "Friendlytwo", "pending secure target was not applied")
 assert(not friendlySlot.visual.mouse, "ready secure target remained blocked")
+assert(friendlySlot.action.point[2] == secondFlagIcon, "secure target did not move beside the new flag row after combat")
+assert(not friendlySlot.blocker.shown and not friendlySlot.blocker.mouse, "secure target blocker remained active after combat")
+
+captured:SetSlot(friendlySlot, "Friendlytwo", secondFlagIcon, false)
+assert(friendlySlot.visual.shown and not friendlySlot.action.mouse, "name-only mode did not disable click targeting")
 
 captured:SetSlot(friendlySlot, nil)
 assert(not friendlySlot.action.mouse, "empty secure target still intercepted clicks")
 
-print("BattlegroundsPvP tests passed: " .. tostring(#cases + 17))
+print("BattlegroundsPvP tests passed")

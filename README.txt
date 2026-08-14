@@ -42,7 +42,8 @@ Raid Rolls:
 - Supports flexible safe starts like roll [item] MS, roll 1-100 [item], and [item] x2 roll MS.
 
 PvP:
-- Shows friendly and enemy flag-carrier names beside Blizzard's battleground objective UI.
+- Shows friendly and enemy flag-carrier names beside the matching Blizzard flag-status rows.
+- Separate settings control name display, click targeting, friendly Square marking, and enemy Skull marking.
 - Click a ready carrier name to target that player when visible.
 - Marks the friendly flag carrier with Square and the enemy flag carrier with Skull when unit access and permissions allow.
 
@@ -72,7 +73,7 @@ Changelog:
 
 0.1.34
 - Added the PvP settings page and BattlegroundsPvP module.
-- Added clickable friendly/enemy flag-carrier names beside Blizzard's battleground objectives.
+- Added configurable clickable friendly/enemy flag-carrier names beside the matching Blizzard flag icons.
 - Added automatic Square/Skull carrier marking with safe cleanup on drops, returns, captures, and carrier changes.
 
 0.1.33

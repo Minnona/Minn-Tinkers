@@ -6,11 +6,15 @@ local DISCOVERY_SECONDS = 8
 local DISCOVERY_INTERVAL = 0.25
 
 local module = {
-    name = "PvP",
+    name = "Battleground flag-carrier tools",
     desc = "Shows clickable flag-carrier names beside Blizzard's battleground objectives and marks friendly/enemy carriers.",
     category = "PvP",
     defaults = {
-        enabled = true
+        enabled = true,
+        showCarrierNames = true,
+        clickToTarget = true,
+        markFriendly = true,
+        markEnemy = true
     }
 }
 
@@ -92,8 +96,13 @@ end
 
 local function flag_faction(text)
     text = lower(text)
-    if string.find(text, "alliance flag", 1, true) then return "Alliance" end
-    if string.find(text, "horde flag", 1, true) then return "Horde" end
+    local compact = string.gsub(text, "[^%a]", "")
+    if string.find(text, "alliance flag", 1, true)
+        or string.find(compact, "allianceflag", 1, true)
+        or string.find(compact, "flagalliance", 1, true) then return "Alliance" end
+    if string.find(text, "horde flag", 1, true)
+        or string.find(compact, "hordeflag", 1, true)
+        or string.find(compact, "flaghorde", 1, true) then return "Horde" end
     return "Neutral"
 end
 
@@ -209,7 +218,9 @@ function module:ShowSlotTooltip(slot, owner)
     if not slot or not slot.name or not GameTooltip then return end
     GameTooltip:SetOwner(owner, "ANCHOR_BOTTOM")
     GameTooltip:SetText(display_name(slot.name), 1, 1, 1)
-    if slot.readyName == slot.name then
+    if not slot.clickable then
+        GameTooltip:AddLine("Click targeting is disabled in PvP settings.", 1, 0.82, 0, true)
+    elseif slot.readyName == slot.name and slot.readyAnchor == slot.anchor then
         GameTooltip:AddLine("Click to target if the carrier is visible.", nil, nil, nil, true)
     else
         GameTooltip:AddLine("Targeting will be ready after combat ends.", 1, 0.35, 0.2, true)
@@ -217,14 +228,14 @@ function module:ShowSlotTooltip(slot, owner)
     GameTooltip:Show()
 end
 
-function module:CreateSlot(key, y, prefix, color)
+function module:CreateSlot(key, prefix, color)
     local anchor = WorldStateAlwaysUpFrame or UIParent
     if not anchor or not UIParent then return nil end
 
     local action = CreateFrame("Button", "MinnTinkers_BattlegroundsPvP_" .. key .. "Target", UIParent, "SecureActionButtonTemplate")
     action:SetWidth(210)
     action:SetHeight(18)
-    action:SetPoint("TOPLEFT", anchor, "TOP", 40, y)
+    action:SetPoint("LEFT", anchor, "RIGHT", 6, 0)
     action:RegisterForClicks("AnyUp")
     action:SetFrameStrata("HIGH")
     action:EnableMouse(false)
@@ -234,10 +245,17 @@ function module:CreateSlot(key, y, prefix, color)
     local visual = CreateFrame("Frame", nil, UIParent)
     visual:SetWidth(210)
     visual:SetHeight(18)
-    visual:SetPoint("TOPLEFT", anchor, "TOP", 40, y)
+    visual:SetPoint("LEFT", anchor, "RIGHT", 6, 0)
     visual:SetFrameStrata("HIGH")
     visual:SetFrameLevel(action:GetFrameLevel() + 1)
     visual:EnableMouse(false)
+
+    local blocker = CreateFrame("Frame", nil, UIParent)
+    blocker:SetAllPoints(action)
+    blocker:SetFrameStrata("HIGH")
+    blocker:SetFrameLevel(action:GetFrameLevel() + 2)
+    blocker:EnableMouse(false)
+    blocker:Hide()
 
     local label = visual:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     label:SetAllPoints(visual)
@@ -247,6 +265,7 @@ function module:CreateSlot(key, y, prefix, color)
     local slot = {
         action = action,
         visual = visual,
+        blocker = blocker,
         label = label,
         prefix = prefix,
         color = color
@@ -256,6 +275,8 @@ function module:CreateSlot(key, y, prefix, color)
     action:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
     visual:SetScript("OnEnter", function(self) module:ShowSlotTooltip(slot, self) end)
     visual:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+    blocker:SetScript("OnEnter", function(self) module:ShowSlotTooltip(slot, self) end)
+    blocker:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
     visual:Hide()
     return slot
 end
@@ -267,8 +288,8 @@ function module:CreateDisplay()
         return false
     end
     self.slots = {
-        friendly = self:CreateSlot("Friendly", -16, "Friendly FC: ", "|cff33aaff"),
-        enemy = self:CreateSlot("Enemy", -36, "Enemy FC: ", "|cffff4040")
+        friendly = self:CreateSlot("Friendly", "Friendly FC: ", "|cff33aaff"),
+        enemy = self:CreateSlot("Enemy", "Enemy FC: ", "|cffff4040")
     }
     self.displayPending = false
     return true
@@ -276,26 +297,32 @@ end
 
 function module:ApplySlotSecure(slot)
     if not slot then return end
-    local name = slot.name
+    local visible = slot.name and slot.anchor and true or false
+    local name = visible and slot.clickable and slot.name or nil
+    local anchor = name and slot.anchor or nil
+    local ready = slot.readyName == name and slot.readyAnchor == anchor
 
     if combat_locked() then
-        if name and slot.readyName == name then
-            slot.visual:Show()
+        if visible then slot.visual:Show() else slot.visual:Hide() end
+
+        if ready then
             slot.visual:EnableMouse(false)
-        elseif not name and not slot.readyName then
-            slot.visual:Hide()
-            slot.visual:EnableMouse(false)
+            slot.blocker:Hide()
+            slot.blocker:EnableMouse(false)
         else
-            slot.visual:Show()
-            slot.visual:EnableMouse(true)
+            slot.visual:EnableMouse(visible and true or false)
+            slot.blocker:Show()
+            slot.blocker:EnableMouse(true)
         end
-        slot.pendingSecure = slot.readyName ~= name
+        slot.pendingSecure = not ready
         return
     end
 
     local ok = true
     if name then
-        ok = pcall(slot.action.SetAttribute, slot.action, "type1", "macro")
+        ok = pcall(slot.action.ClearAllPoints, slot.action)
+        if ok then ok = pcall(slot.action.SetPoint, slot.action, "LEFT", anchor, "RIGHT", 6, 0) end
+        if ok then ok = pcall(slot.action.SetAttribute, slot.action, "type1", "macro") end
         if ok then ok = pcall(slot.action.SetAttribute, slot.action, "macrotext", "/targetexact " .. tostring(name)) end
     else
         ok = pcall(slot.action.SetAttribute, slot.action, "macrotext", "")
@@ -304,25 +331,39 @@ function module:ApplySlotSecure(slot)
 
     if ok then
         slot.readyName = name
+        slot.readyAnchor = anchor
         slot.pendingSecure = false
         slot.action:EnableMouse(name and true or false)
         slot.visual:EnableMouse(false)
-        if name then slot.visual:Show() else slot.visual:Hide() end
+        slot.blocker:Hide()
+        slot.blocker:EnableMouse(false)
+        if visible then slot.visual:Show() else slot.visual:Hide() end
     else
         slot.pendingSecure = true
-        slot.visual:Show()
-        slot.visual:EnableMouse(true)
+        if visible then slot.visual:Show() else slot.visual:Hide() end
+        slot.visual:EnableMouse(visible and true or false)
+        slot.blocker:Show()
+        slot.blocker:EnableMouse(true)
     end
 end
 
-function module:SetSlot(slot, name)
+function module:SetSlot(slot, name, anchor, clickable)
     if not slot then return end
     slot.name = name
-    if name then
+    slot.anchor = anchor
+    slot.clickable = clickable and true or false
+
+    if anchor then
+        slot.visual:ClearAllPoints()
+        slot.visual:SetPoint("LEFT", anchor, "RIGHT", 6, 0)
+    end
+
+    if name and anchor then
         slot.label:SetText(tostring(slot.color) .. tostring(slot.prefix) .. "|r" .. display_name(name))
         slot.visual:Show()
     else
         slot.label:SetText("")
+        slot.visual:Hide()
     end
     self:ApplySlotSecure(slot)
 end
@@ -370,8 +411,18 @@ function module:ClearStaleMarkers()
     end
 end
 
-function module:TryMarkCarrier(carrier, side)
+function module:TryMarkCarrier(carrier, side, core)
     if not carrier then return false end
+    local db = core and core:GetModuleDB(self.key) or self.defaults
+    db = db or self.defaults
+    local markingEnabled = side == "friendly" and db.markFriendly ~= false
+        or side == "enemy" and db.markEnemy ~= false
+
+    if not markingEnabled then
+        self:ClearCarrierMarker(carrier)
+        return true
+    end
+
     local unit
     local icon
 
@@ -405,7 +456,7 @@ function module:TryMarkCarrier(carrier, side)
     return true
 end
 
-function module:SetCarrier(flag, name)
+function module:SetCarrier(flag, name, worldStateAnchor)
     name = clean_name(name)
     if not name then return false end
     flag = flag or "Neutral"
@@ -418,11 +469,17 @@ function module:SetCarrier(flag, name)
     end
 
     local old = self.carriers and self.carriers[flag]
-    if old and name_key(old.name) == name_key(name) then return false end
+    if old and name_key(old.name) == name_key(name) then
+        if worldStateAnchor and old.worldStateAnchor ~= worldStateAnchor then
+            old.worldStateAnchor = worldStateAnchor
+            return true
+        end
+        return false
+    end
     if old then self:ClearCarrierMarker(old) end
 
     self.carriers = self.carriers or {}
-    self.carriers[flag] = { name = name, flag = flag }
+    self.carriers[flag] = { name = name, flag = flag, worldStateAnchor = worldStateAnchor }
     if self.staleMarkers then self.staleMarkers[name_key(name)] = nil end
     return true
 end
@@ -460,20 +517,36 @@ function module:ScanWorldStates()
     if not GetNumWorldStateUI or not GetWorldStateUIInfo then return false end
     local changed = false
     local count = GetNumWorldStateUI() or 0
+    local alwaysUpShown = 1
+    local worldStateRows = {}
 
     for i = 1, count do
         local _, state, text, icon, dynamicIcon, tooltip, dynamicTooltip, extendedUI = GetWorldStateUIInfo(i)
         if (tonumber(state) or 0) > 0 and (not extendedUI or extendedUI == "") then
             local info = table.concat({ tostring(text or ""), tostring(icon or ""), tostring(dynamicIcon or ""), tostring(tooltip or ""), tostring(dynamicTooltip or "") }, " ")
+            local frameName = "AlwaysUpFrame" .. tostring(alwaysUpShown)
+            local worldStateAnchor = _G[frameName .. "DynamicIconButton"] or _G[frameName]
+            local faction = flag_faction(info)
+            if faction ~= "Neutral" and worldStateAnchor then worldStateRows[faction] = worldStateAnchor end
+
             local name = self:ExtractWorldStateCarrier(dynamicTooltip) or self:ExtractWorldStateCarrier(tooltip)
-            if name and self:SetCarrier(flag_faction(info), name) then changed = true end
+            if name and self:SetCarrier(faction, name, worldStateAnchor) then changed = true end
+            alwaysUpShown = alwaysUpShown + 1
+        end
+    end
+
+    self.worldStateRows = worldStateRows
+    for flag, carrier in pairs(self.carriers or {}) do
+        if worldStateRows[flag] and carrier.worldStateAnchor ~= worldStateRows[flag] then
+            carrier.worldStateAnchor = worldStateRows[flag]
+            changed = true
         end
     end
 
     return changed
 end
 
-function module:RefreshAll()
+function module:RefreshAll(core)
     self:CreateDisplay()
     if not in_battleground() then
         if self.slots then
@@ -483,10 +556,15 @@ function module:RefreshAll()
         return
     end
 
+    self:ScanWorldStates()
     self:ClearStaleMarkers()
     local friendly
     local enemy
     local waitingForEnemy = false
+    local db = core and core:GetModuleDB(self.key) or self.defaults
+    db = db or self.defaults
+    local showCarrierNames = db.showCarrierNames ~= false
+    local clickToTarget = db.clickToTarget ~= false
 
     for _, carrier in pairs(self.carriers or {}) do
         local friendlyUnit = self:FindFriendlyUnit(carrier.name)
@@ -495,7 +573,7 @@ function module:RefreshAll()
         if carrier.side and carrier.side ~= side then self:ClearCarrierMarker(carrier) end
         carrier.side = side
 
-        local found = self:TryMarkCarrier(carrier, side)
+        local found = self:TryMarkCarrier(carrier, side, core)
         if side == "friendly" then
             friendly = carrier
         else
@@ -504,8 +582,18 @@ function module:RefreshAll()
         end
     end
 
-    self:SetSlot(self.slots and self.slots.friendly, friendly and friendly.name or nil)
-    self:SetSlot(self.slots and self.slots.enemy, enemy and enemy.name or nil)
+    self:SetSlot(
+        self.slots and self.slots.friendly,
+        showCarrierNames and friendly and friendly.name or nil,
+        showCarrierNames and friendly and (friendly.worldStateAnchor or (self.worldStateRows and self.worldStateRows[friendly.flag])) or nil,
+        clickToTarget
+    )
+    self:SetSlot(
+        self.slots and self.slots.enemy,
+        showCarrierNames and enemy and enemy.name or nil,
+        showCarrierNames and enemy and (enemy.worldStateAnchor or (self.worldStateRows and self.worldStateRows[enemy.flag])) or nil,
+        clickToTarget
+    )
     if not waitingForEnemy then self.discoveryRemaining = 0 end
 end
 
@@ -673,10 +761,89 @@ function module:OnDisable(core)
 end
 
 function module:BuildOptions(core, panel, y)
-    return y
+    core.optionControls[self.key] = core.optionControls[self.key] or {}
+    local controls = core.optionControls[self.key]
+    local db = core:GetModuleDB(self.key)
+
+    local showCarrierNames = core:CreateCheckbox(
+        panel,
+        "MinnTinkers_BattlegroundsPvP_ShowCarrierNames",
+        "Show carrier names beside Blizzard flag icons",
+        "Show carrier names",
+        "Adds Friendly FC and Enemy FC names to the matching flag-status rows in Blizzard's battleground objective UI.",
+        42,
+        y,
+        db.showCarrierNames,
+        function(checked)
+            core:GetModuleDB(module.key).showCarrierNames = checked
+            if module.enabled then module:RefreshAll(core) end
+        end
+    )
+    controls.showCarrierNames = showCarrierNames
+    y = y - 30
+
+    local clickToTarget = core:CreateCheckbox(
+        panel,
+        "MinnTinkers_BattlegroundsPvP_ClickToTarget",
+        "Click carrier names to target",
+        "Click carrier names to target",
+        "Uses secure target buttons. If a carrier changes during combat, targeting stays blocked until combat ends.",
+        42,
+        y,
+        db.clickToTarget,
+        function(checked)
+            core:GetModuleDB(module.key).clickToTarget = checked
+            if module.enabled then module:RefreshAll(core) end
+        end
+    )
+    controls.clickToTarget = clickToTarget
+    y = y - 30
+
+    local markFriendly = core:CreateCheckbox(
+        panel,
+        "MinnTinkers_BattlegroundsPvP_MarkFriendly",
+        "Mark friendly flag carrier with Square",
+        "Mark friendly flag carrier with Square",
+        "Applies Square when the friendly carrier is discovered and clears it only if this addon applied it.",
+        42,
+        y,
+        db.markFriendly,
+        function(checked)
+            core:GetModuleDB(module.key).markFriendly = checked
+            if module.enabled then module:RefreshAll(core) end
+        end
+    )
+    controls.markFriendly = markFriendly
+    y = y - 30
+
+    local markEnemy = core:CreateCheckbox(
+        panel,
+        "MinnTinkers_BattlegroundsPvP_MarkEnemy",
+        "Mark enemy flag carrier with Skull",
+        "Mark enemy flag carrier with Skull",
+        "Applies Skull once the enemy carrier is available through a target, focus, mouseover, or group-member target.",
+        42,
+        y,
+        db.markEnemy,
+        function(checked)
+            core:GetModuleDB(module.key).markEnemy = checked
+            if module.enabled then module:RefreshAll(core) end
+        end
+    )
+    controls.markEnemy = markEnemy
+
+    return y - 30
 end
 
 function module:RefreshOptions(core)
+    local controls = core.optionControls[self.key]
+    local db = core:GetModuleDB(self.key)
+    if not controls or not db then return end
+
+    if controls.showCarrierNames then controls.showCarrierNames:SetChecked(db.showCarrierNames and true or false) end
+    if controls.clickToTarget then controls.clickToTarget:SetChecked(db.clickToTarget and true or false) end
+    if controls.markFriendly then controls.markFriendly:SetChecked(db.markFriendly and true or false) end
+    if controls.markEnemy then controls.markEnemy:SetChecked(db.markEnemy and true or false) end
 end
 
 MT:RegisterModule("BattlegroundsPvP", module)

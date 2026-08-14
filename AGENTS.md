@@ -301,7 +301,7 @@ Parser must stay allowlist-based: require exactly one item link, accept only kno
 
 Own tab: **PvP**.
 
-Shows friendly/enemy flag-carrier names beside Blizzard's battleground objective UI. Target buttons must use secure actions and fail closed while a changed carrier is combat-locked. Friendly carriers use Square; enemy carriers use Skull. Clear only markers the module verified it applied. Detection must remain event-driven with bounded discovery retries.
+Shows friendly/enemy flag-carrier names beside the matching Blizzard flag-status rows. The PvP page exposes name display, click targeting, friendly Square marking, and enemy Skull marking as separate default-on settings. Target buttons must use secure actions and fail closed while a changed carrier is combat-locked. Clear only markers the module verified it applied. Detection must remain event-driven with bounded discovery retries.
 
 ### WardrobeAutoAccept.lua
 
