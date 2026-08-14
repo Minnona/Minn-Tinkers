@@ -11,6 +11,11 @@ local OPTION_CATEGORIES = {
         label = "Raid Rolls",
         desc = "Master-looter roll tracking and raid loot announcement tools."
     },
+    PvP = {
+        key = "PvP",
+        label = "PvP",
+        desc = "Battleground flag-carrier tracking, targeting, and marking tools."
+    },
     Felsworn = {
         key = "Felsworn",
         label = "Felsworn",
@@ -28,7 +33,7 @@ local OPTION_CATEGORIES = {
     }
 }
 
-local OPTION_ORDER = { "Universal", "RaidRolls", "Felsworn", "Venomancer", "Debug" }
+local OPTION_ORDER = { "Universal", "RaidRolls", "PvP", "Felsworn", "Venomancer", "Debug" }
 
 local function SetTooltip(owner, title, text)
     if not owner then return end

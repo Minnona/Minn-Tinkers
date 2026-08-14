@@ -3,7 +3,7 @@ Minn Tinkers
 
 Personal WoW 3.3.5a quality-of-life addon.
 
-Version: 0.1.33
+Version: 0.1.34
 License: GPL-3.0
 
 Install:
@@ -20,6 +20,7 @@ Settings:
 - Expand Minn Tinkers with the + button to see:
   - Universal
   - Raid Rolls
+  - PvP
   - Felsworn
   - Venomancer
   - Debug
@@ -39,6 +40,11 @@ Raid Rolls:
 - Raid Roll Helper for master-looter MS/OS rolls.
 - Can track your own item links or trusted raid leader/master-looter item announcements.
 - Supports flexible safe starts like roll [item] MS, roll 1-100 [item], and [item] x2 roll MS.
+
+PvP:
+- Shows friendly and enemy flag-carrier names beside Blizzard's battleground objective UI.
+- Click a ready carrier name to target that player when visible.
+- Marks the friendly flag carrier with Square and the enemy flag carrier with Skull when unit access and permissions allow.
 
 Felsworn:
 - Vengeful Pact reminder button.
@@ -63,6 +69,11 @@ Most other controls are handled through the settings UI.
 Advanced/dev actions are under /minn debug.
 
 Changelog:
+
+0.1.34
+- Added the PvP settings page and BattlegroundsPvP module.
+- Added clickable friendly/enemy flag-carrier names beside Blizzard's battleground objectives.
+- Added automatic Square/Skull carrier marking with safe cleanup on drops, returns, captures, and carrier changes.
 
 0.1.33
 - Expanded Raid Roll Helper start parsing for common MS/OS wording, polite filler, and roll ranges.

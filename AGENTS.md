@@ -171,6 +171,7 @@ Expected settings pages:
 ```text
 Universal
 Raid Rolls
+PvP
 Felsworn
 Venomancer
 Debug
@@ -296,6 +297,12 @@ Trusted announcer mode can start from:
 
 Parser must stay allowlist-based: require exactly one item link, accept only known roll/count/loot wording, and reject unknown conversational text.
 
+### BattlegroundsPvP.lua
+
+Own tab: **PvP**.
+
+Shows friendly/enemy flag-carrier names beside Blizzard's battleground objective UI. Target buttons must use secure actions and fail closed while a changed carrier is combat-locked. Friendly carriers use Square; enemy carriers use Skull. Clear only markers the module verified it applied. Detection must remain event-driven with bounded discovery retries.
+
 ### WardrobeAutoAccept.lua
 
 Auto-accepts wardrobe/transmog appearance confirmation after Ctrl+Alt item click.
@@ -393,7 +400,7 @@ Future polish target: avoid permanent `OnUpdate`; only run while pending, visibl
 Current expected version after latest handoff:
 
 ```text
-0.1.33
+0.1.34
 ```
 
 When changing files, bump TOC version only when it is a real user-facing patch. Keep README/README.txt in sync if doing a release-style update.
