@@ -3,7 +3,7 @@ Minn Tinkers
 
 Personal WoW 3.3.5a quality-of-life addon.
 
-Version: 0.1.28
+Version: 0.1.33
 License: GPL-3.0
 
 Install:
@@ -38,7 +38,7 @@ Universal:
 Raid Rolls:
 - Raid Roll Helper for master-looter MS/OS rolls.
 - Can track your own item links or trusted raid leader/master-looter item announcements.
-- Supports item start formats like [item], roll [item], [item] roll, 2 [item], [item] x2 roll, and roll [item] x2.
+- Supports flexible safe starts like roll [item] MS, roll 1-100 [item], and [item] x2 roll MS.
 
 Felsworn:
 - Vengeful Pact reminder button.
@@ -63,6 +63,11 @@ Most other controls are handled through the settings UI.
 Advanced/dev actions are under /minn debug.
 
 Changelog:
+
+0.1.33
+- Expanded Raid Roll Helper start parsing for common MS/OS wording, polite filler, and roll ranges.
+- Roll 99/100 instructions are no longer mistaken for multi-copy counts.
+- Oversized or ambiguous copy counts are rejected instead of silently clamped.
 
 0.1.28
 - Removed redundant grey footnotes from crowded Universal settings sections.

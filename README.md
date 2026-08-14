@@ -16,7 +16,7 @@ Personal utility addon for World of Warcraft 3.3.5a / Ascension.
 - Smart dungeon rolls, including a Zul'Gurub green/blue Need override
 - Raid Roll Helper in its own Raid Rolls settings tab
 - Raid Roll Helper supports trusted raid leader/master-looter item announcements
-- Raid Roll Helper supports start formats like `roll [item]`, `[item] roll`, `[item] x2 roll`, and `roll [item] x2`
+- Raid Roll Helper supports flexible safe starts like `roll [item] MS`, `roll 1-100 [item]`, and `[item] x2 roll MS`
 - Wardrobe Auto-Accept for appearance collection confirmations
 - Battleground Spoils Auto-Select for single stat-choice reward windows
 - Popup Guard to stop Escape from accidentally cancelling protected invites, summons, resurrection, and queue popups

@@ -23,8 +23,29 @@ local module = {
     }
 }
 
-local ROLL_WORDS = { roll = true, rolls = true, rolling = true }
+local ROLL_WORDS = { roll = true, rolls = true, rolling = true, ["/roll"] = true }
+local ROLL_RANGES = { ["1-100"] = true, ["1-99"] = true }
 local FILLER_WORDS = { ["for"] = true }
+local FLEXIBLE_WORDS = {
+    ["on"] = true,
+    ["please"] = true,
+    ["now"] = true,
+    ["ms"] = true,
+    ["os"] = true,
+    ["ms/os"] = true,
+    ["main"] = true,
+    ["mainspec"] = true,
+    ["main-spec"] = true,
+    ["off"] = true,
+    ["offspec"] = true,
+    ["off-spec"] = true,
+    ["spec"] = true,
+    ["need"] = true,
+    ["greed"] = true,
+    ["open"] = true,
+    ["only"] = true
+}
+local FLEXIBLE_SEPARATORS = { ["/"] = true, [">"] = true }
 
 local function trim(text)
     text = tostring(text or "")
@@ -275,10 +296,11 @@ end
 
 function module:ParseStartText(core, text)
     text = trim(text)
-    if text == "" or self:CountItemLinks(text) ~= 1 then return nil end
+    if text == "" then return nil, nil, "empty text" end
+    if self:CountItemLinks(text) ~= 1 then return nil, nil, "expected exactly one item link" end
 
     local before, link, after = string.match(text, "^%s*(.-)%s*(|c%x+|Hitem:.-|h%[.-%]|h|r)%s*(.-)%s*$")
-    if not link then return nil end
+    if not link then return nil, nil, "item link was not recognized" end
 
     before = trim(before)
     after = trim(after)
@@ -288,16 +310,28 @@ function module:ParseStartText(core, text)
     local count = 1
     local sawCount = false
     local pendingX = false
+    local sawFlexibleWord = false
+    local sawRollCue = false
 
     local outside = lower(trim(before .. " " .. after))
-    outside = string.gsub(outside, "[,;:!%.%(%)]", " ")
+    outside = string.gsub(outside, "1%s*%-%s*100", "1-100")
+    outside = string.gsub(outside, "1%s*%-%s*99", "1-99")
+    outside = string.gsub(outside, "%s*>%s*", " > ")
+    outside = string.gsub(outside, "[,;:!%?%.%(%)]", " ")
     outside = string.gsub(outside, "%s+", " ")
     outside = trim(outside)
 
+    local tokens = {}
     for token in string.gmatch(outside, "%S+") do
+        table.insert(tokens, token)
+        if ROLL_WORDS[token] or ROLL_RANGES[token] then sawRollCue = true end
+    end
+
+    for _, token in ipairs(tokens) do
         if pendingX then
             local n = tonumber(token)
-            if not n or sawCount then return nil end
+            if not n or sawCount then return nil, nil, "invalid copy count" end
+            if n < 1 or n > maxCopies then return nil, nil, "copy count is outside 1-" .. tostring(maxCopies) end
             count = n
             sawCount = true
             pendingX = false
@@ -305,23 +339,30 @@ function module:ParseStartText(core, text)
             pendingX = true
         elseif ROLL_WORDS[token] or FILLER_WORDS[token] then
             -- Allowed roll wording.
+        elseif ROLL_RANGES[token] then
+            -- A roll range is instruction text, not a copy count.
+        elseif FLEXIBLE_WORDS[token] or FLEXIBLE_SEPARATORS[token] then
+            sawFlexibleWord = true
         else
             local n = parse_count_token(token)
             if n then
-                if sawCount then return nil end
-                count = n
-                sawCount = true
+                local isPlainRangeMaximum = string.match(token, "^%d+$") and sawRollCue and (n == 99 or n == 100)
+                if not isPlainRangeMaximum then
+                    if sawCount then return nil, nil, "more than one copy count" end
+                    if n < 1 or n > maxCopies then return nil, nil, "copy count is outside 1-" .. tostring(maxCopies) end
+                    count = n
+                    sawCount = true
+                end
             else
-                return nil
+                return nil, nil, "unsupported word: " .. tostring(token)
             end
         end
     end
 
-    if pendingX then return nil end
+    if pendingX then return nil, nil, "copy count is missing after x" end
+    if sawFlexibleWord and not sawRollCue then return nil, nil, "loot wording requires a roll cue" end
 
     count = tonumber(count) or 1
-    if count < 1 then count = 1 end
-    if count > maxCopies then count = maxCopies end
 
     return link, count
 end
@@ -355,8 +396,9 @@ function module:StartRoll(core, link, copies, manual, allowWithoutMasterLooter)
 end
 
 function module:StartFromText(core, text, manual)
-    local link, copies = self:ParseStartText(core, text)
+    local link, copies, parseError = self:ParseStartText(core, text)
     if not link then
+        self:Debug(core, "Ignored manual start: " .. tostring(parseError or "not recognized"))
         if manual then core:Print("Usage: /minn roll [itemlink] or /minn roll 3 [itemlink]") end
         return false
     end
@@ -620,8 +662,11 @@ function module:OnOutgoingChat(core, text, chatType)
     chatType = tostring(chatType or "")
     if chatType ~= "RAID" and chatType ~= "RAID_WARNING" and chatType ~= "PARTY" then return end
 
-    local link, copies = self:ParseStartText(core, text)
-    if not link then return end
+    local link, copies, parseError = self:ParseStartText(core, text)
+    if not link then
+        self:Debug(core, "Ignored your chat start: " .. tostring(parseError or "not recognized"))
+        return
+    end
     if not self:CanStart(core, false, false) then self:Debug(core, "Auto-start blocked.") return end
     self:StartRoll(core, link, copies, false, false)
 end
@@ -632,12 +677,17 @@ function module:OnIncomingChat(core, event, text, sender)
 
     if event ~= "CHAT_MSG_RAID" and event ~= "CHAT_MSG_RAID_WARNING" then return end
 
-    local link, copies = self:ParseStartText(core, text)
-    if not link then return end
+    if self:CountItemLinks(text) ~= 1 then return end
 
     local trusted, reason = self:IsTrustedAnnouncer(core, sender)
     if not trusted then
         self:Debug(core, "Ignored item link from non-trusted announcer: " .. tostring(sender))
+        return
+    end
+
+    local link, copies, parseError = self:ParseStartText(core, text)
+    if not link then
+        self:Debug(core, "Ignored trusted announcement: " .. tostring(parseError or "not recognized"))
         return
     end
 
@@ -697,15 +747,15 @@ function module:BuildOptions(core, panel, y)
     controls.requireMasterLooter = requireML
     y = y - 28
 
-    local autoStart = core:CreateCheckbox(panel, "MinnTinkers_RaidRollHelper_AutoStart", "Auto-start when I link one item", "Auto-start when I link one item", "Starts when your raid/party message is a plain item link, roll plus item link, or count plus item link.", 42, y, db.autoStart, function(checked) core:GetModuleDB(module.key).autoStart = checked end)
+    local autoStart = core:CreateCheckbox(panel, "MinnTinkers_RaidRollHelper_AutoStart", "Auto-start when I link one item", "Auto-start when I link one item", "Starts from one item link with safe roll wording, MS/OS wording, a roll range, or an optional copy count.", 42, y, db.autoStart, function(checked) core:GetModuleDB(module.key).autoStart = checked end)
     controls.autoStart = autoStart
     y = y - 28
 
-    local autoStartML = core:CreateCheckbox(panel, "MinnTinkers_RaidRollHelper_AutoStartML", "Auto-start from master looter item links", "Auto-start from master looter item links", "Tracks rolls when the detected master looter announces a plain item link, roll plus item link, or count plus item link in raid chat.", 42, y, db.autoStartFromMasterLooter, function(checked) core:GetModuleDB(module.key).autoStartFromMasterLooter = checked end)
+    local autoStartML = core:CreateCheckbox(panel, "MinnTinkers_RaidRollHelper_AutoStartML", "Auto-start from master looter item links", "Auto-start from master looter item links", "Tracks safe roll announcements from the detected master looter, including MS/OS wording, roll ranges, and copy counts.", 42, y, db.autoStartFromMasterLooter, function(checked) core:GetModuleDB(module.key).autoStartFromMasterLooter = checked end)
     controls.autoStartFromMasterLooter = autoStartML
     y = y - 28
 
-    local autoStartLeader = core:CreateCheckbox(panel, "MinnTinkers_RaidRollHelper_AutoStartLeader", "Auto-start from raid leader item links", "Auto-start from raid leader item links", "Tracks rolls when the raid leader announces a plain item link, roll plus item link, or count plus item link in raid chat.", 42, y, db.autoStartFromRaidLeader, function(checked) core:GetModuleDB(module.key).autoStartFromRaidLeader = checked end)
+    local autoStartLeader = core:CreateCheckbox(panel, "MinnTinkers_RaidRollHelper_AutoStartLeader", "Auto-start from raid leader item links", "Auto-start from raid leader item links", "Tracks safe roll announcements from the raid leader, including MS/OS wording, roll ranges, and copy counts.", 42, y, db.autoStartFromRaidLeader, function(checked) core:GetModuleDB(module.key).autoStartFromRaidLeader = checked end)
     controls.autoStartFromRaidLeader = autoStartLeader
     y = y - 28
 
@@ -740,7 +790,7 @@ function module:BuildOptions(core, panel, y)
     core:CreateOptionButton(panel, "MinnTinkers_RaidRollHelper_Cancel", "Cancel active roll", 42, y, 150, 24, function() module:Cancel(core) end)
     y = y - 34
 
-    core:CreateText(panel, "Supported starts: [item], roll [item], [item] roll, 2 [item], [item] x2 roll, roll [item] x2.", 42, y, 520, "GameFontDisableSmall")
+    core:CreateText(panel, "Supported starts: [item], roll [item] MS, roll 1-100 [item], [item] x2 roll MS.", 42, y, 520, "GameFontDisableSmall")
     y = y - 34
 
     return y
