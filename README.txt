@@ -3,7 +3,7 @@ Minn Tinkers
 
 Personal WoW 3.3.5a quality-of-life addon.
 
-Version: 0.1.35
+Version: 0.1.36
 License: GPL-3.0
 
 Install:
@@ -36,7 +36,7 @@ Universal:
 - Wardrobe Auto-Accept for appearance collection confirmations.
 - Battleground Spoils Auto-Select for single stat-choice reward windows.
 - Popup Guard for protected invites, summons, resurrection, dungeon/LFG, and battleground queue popups.
-- Mark tank with Star and healer with Moon from RDF/LFG role data.
+- Mark tank with Star and healer with Moon from RDF/LFG role data, with optional same-dungeon memory through Mythic+ activation.
 
 Raid Rolls:
 - Raid Roll Helper for master-looter MS/OS rolls.
@@ -78,6 +78,11 @@ Most other controls are handled through the settings UI.
 Advanced/dev actions are under /minn debug.
 
 Changelog:
+
+0.1.36
+- Added an Auto-mark Roles option to remember the dungeon's Star/Moon players through Mythic+ activation.
+- Remembered roles follow player GUIDs across party-token changes and clear when leaving or entering another dungeon.
+- Keep Marked can restore the cached tank/healer even when Mythic+ activation removes live role data and raid markers.
 
 0.1.35
 - Added the Raid Lockouts page and account-wide RaidLockouts module.

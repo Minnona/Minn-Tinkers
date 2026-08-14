@@ -7,7 +7,7 @@ Personal utility addon for World of Warcraft 3.3.5a / Ascension.
 - Frog minimap button for opening settings
 - Auto-sell grey items
 - Auto-skip safe single-option gossip
-- Auto-mark tank and healer roles
+- Auto-mark tank and healer roles, with same-dungeon memory through Mythic+ activation
 - Felsworn tools
 - Venomancer tools
 - Buff reminder buttons

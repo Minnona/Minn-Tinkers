@@ -394,7 +394,7 @@ Tank = Star
 Healer = Moon
 ```
 
-Event-driven delayed checks only. No permanent loop.
+The default-on `rememberDungeonRoles` option remembers the current dungeon's Star/Moon identities by GUID/name so Keep Marked can restore them after Mythic+ activation removes role data and markers. Ignore difficulty changes when deciding whether it is the same dungeon. Clear memory after leaving, entering a different dungeon, disabling the option, or losing that group member. Event-driven delayed checks only; no permanent loop.
 
 ### VengefulPact.lua / ManariIntuition.lua / EnvenomedWeapons.lua
 
@@ -407,7 +407,7 @@ Future polish target: avoid permanent `OnUpdate`; only run while pending, visibl
 Current expected version after latest handoff:
 
 ```text
-0.1.35
+0.1.36
 ```
 
 When changing files, bump TOC version only when it is a real user-facing patch. Keep README/README.txt in sync if doing a release-style update.
@@ -448,6 +448,7 @@ Raid roll one item announces only one winner
 Raid roll 3x item announces only three winners, one per line
 Raid Lockouts shows Normal/Heroic/Mythic/Ascended saves across scanned characters
 Raid Lockouts labels offline snapshots with their last scan age
+Auto-mark Roles restores remembered Star/Moon players after Mythic+ activation
 Temporary OnUpdate handlers clear when done
 ```
 

@@ -2,11 +2,12 @@ local MT = MinnTinkers
 
 local module = {
     name = "Auto-mark tank/healer roles",
-    desc = "Marks the detected tank with Star and the detected healer with Moon from RDF/LFG role data.",
+    desc = "Marks the detected tank with Star and healer with Moon, with optional same-dungeon memory through Mythic+ activation.",
     category = "Universal",
     defaults = {
         enabled = true,
         keepMarked = true,
+        rememberDungeonRoles = true,
         tankIcon = 1,
         healerIcon = 5,
         delay = 1.5,
@@ -23,6 +24,12 @@ end
 local function SafeUnregisterEvent(frame, event)
     if not frame or not event then return end
     pcall(frame.UnregisterEvent, frame, event)
+end
+
+local function NormalizeName(name)
+    name = string.lower(tostring(name or ""))
+    name = string.gsub(name, "%-.*$", "")
+    return name
 end
 
 local function IconName(icon)
@@ -172,6 +179,88 @@ function module:GetGroupUnits()
     return units
 end
 
+function module:GetDungeonKey()
+    if not IsInInstance then return nil end
+    local inInstance, instanceType = IsInInstance()
+    if not inInstance or instanceType ~= "party" then return nil end
+
+    local instanceName, instanceID = nil, nil
+    if GetInstanceInfo then
+        instanceName, _, _, _, _, _, _, instanceID = GetInstanceInfo()
+    end
+    if tonumber(instanceID) and tonumber(instanceID) > 0 then return "instance:" .. tostring(instanceID) end
+    instanceName = tostring(instanceName or "")
+    if instanceName == "" then return nil end
+    return string.lower(instanceName)
+end
+
+function module:ClearRoleMemory()
+    self.roleMemory = nil
+end
+
+function module:SyncRoleMemory(core)
+    local db = self:GetDB(core)
+    if not db or not db.rememberDungeonRoles then
+        self:ClearRoleMemory()
+        return nil
+    end
+
+    local instanceKey = self:GetDungeonKey()
+    if not instanceKey then
+        self:ClearRoleMemory()
+        return nil
+    end
+
+    if self.roleMemory and self.roleMemory.instanceKey ~= instanceKey then
+        self:ClearRoleMemory()
+    end
+
+    self.roleMemory = self.roleMemory or { instanceKey = instanceKey }
+    return self.roleMemory
+end
+
+function module:GetUnitIdentity(unit)
+    if not unit or not UnitExists or not UnitExists(unit) then return nil end
+    local name = UnitName and UnitName(unit) or nil
+    local guid = UnitGUID and UnitGUID(unit) or nil
+    if not guid and not name then return nil end
+    return { guid = guid, name = name }
+end
+
+function module:FindRememberedUnit(identity)
+    if type(identity) ~= "table" then return nil end
+    for _, unit in ipairs(self:GetGroupUnits()) do
+        local guid = UnitGUID and UnitGUID(unit) or nil
+        if identity.guid and guid and identity.guid == guid then return unit end
+        if not identity.guid and NormalizeName(identity.name) ~= "" and NormalizeName(UnitName and UnitName(unit) or nil) == NormalizeName(identity.name) then
+            return unit
+        end
+    end
+    return nil
+end
+
+function module:GetMarkedRoleUnits(core)
+    local db = self:GetDB(core)
+    if not db or not GetRaidTargetIndex then return nil, nil end
+
+    local tankIcon = self:NormalizeIcon(db.tankIcon, 1)
+    local healerIcon = self:NormalizeIcon(db.healerIcon, 5)
+    local tankUnit, healerUnit = nil, nil
+    for _, unit in ipairs(self:GetGroupUnits()) do
+        local icon = GetRaidTargetIndex(unit)
+        if icon == tankIcon and not tankUnit then tankUnit = unit end
+        if icon == healerIcon and not healerUnit then healerUnit = unit end
+    end
+    return tankUnit, healerUnit
+end
+
+function module:RememberRoleUnits(core, tankUnit, healerUnit)
+    local memory = self:SyncRoleMemory(core)
+    if not memory then return end
+    if tankUnit then memory.tank = self:GetUnitIdentity(tankUnit) end
+    if healerUnit then memory.healer = self:GetUnitIdentity(healerUnit) end
+end
+
 function module:GetRoleUnits(core)
     local tankUnit = nil
     local healerUnit = nil
@@ -192,6 +281,36 @@ function module:GetRoleUnits(core)
     end
 
     return tankUnit, healerUnit
+end
+
+function module:ResolveRoleUnits(core)
+    local tankUnit, healerUnit = self:GetRoleUnits(core)
+    local memory = self:SyncRoleMemory(core)
+    if not memory then return tankUnit, healerUnit, false end
+
+    if tankUnit or healerUnit then
+        self:RememberRoleUnits(core, tankUnit, healerUnit)
+    end
+
+    if not memory.tank or not memory.healer then
+        local markedTank, markedHealer = self:GetMarkedRoleUnits(core)
+        if not memory.tank and markedTank then memory.tank = self:GetUnitIdentity(markedTank) end
+        if not memory.healer and markedHealer then memory.healer = self:GetUnitIdentity(markedHealer) end
+    end
+
+    local usedMemory = false
+    if not tankUnit and memory.tank then
+        tankUnit = self:FindRememberedUnit(memory.tank)
+        usedMemory = tankUnit and true or usedMemory
+        if not tankUnit then memory.tank = nil end
+    end
+    if not healerUnit and memory.healer then
+        healerUnit = self:FindRememberedUnit(memory.healer)
+        usedMemory = healerUnit and true or usedMemory
+        if not healerUnit then memory.healer = nil end
+    end
+
+    return tankUnit, healerUnit, usedMemory
 end
 
 function module:NormalizeIcon(icon, fallback)
@@ -235,21 +354,19 @@ function module:MarkRoles(core, manual, attempt)
     attempt = attempt or 1
 
     if not manual and not self:ShouldMark(core) then
+        self:SyncRoleMemory(core)
         return
     end
 
-    if not UnitGroupRolesAssigned then
-        if manual then
-            core:Print("Role API is not available on this client/server. I cannot detect tank/healer roles automatically.")
-        end
-        return
-    end
-
-    local tankUnit, healerUnit = self:GetRoleUnits(core)
+    local tankUnit, healerUnit, usedMemory = self:ResolveRoleUnits(core)
 
     if not tankUnit and not healerUnit then
         if manual then
-            core:Print("No tank or healer role found in your current party/raid.")
+            if UnitGroupRolesAssigned then
+                core:Print("No tank or healer role found in your current party/raid, and no remembered dungeon roles are available.")
+            else
+                core:Print("Role API is unavailable and no remembered dungeon roles are available.")
+            end
         elseif attempt < 5 then
             self:ScheduleMark(core, 1.0, attempt + 1)
         end
@@ -272,6 +389,7 @@ function module:MarkRoles(core, manual, attempt)
     end
 
     if manual then
+        if usedMemory then core:Print("Using tank/healer identities remembered for this dungeon.") end
         if tankUnit then
             core:Print("Tank: " .. self:GetUnitLabel(tankUnit) .. " -> " .. IconName(tankIcon) .. ".")
         else
@@ -323,8 +441,7 @@ end
 
 function module:PrintRoles(core)
     if not UnitGroupRolesAssigned then
-        core:Print("Role API is not available on this client/server.")
-        return
+        core:Print("Role API is not available; checking remembered dungeon roles.")
     end
 
     core:Print("Current role scan:")
@@ -334,9 +451,10 @@ function module:PrintRoles(core)
         core:Print(unit .. " - " .. self:GetUnitLabel(unit) .. " - " .. tostring(self:GetRole(unit)) .. " - raw: " .. self:GetRawRoleText(unit))
     end
 
-    local tankUnit, healerUnit = self:GetRoleUnits(core)
-    core:Print("Detected tank: " .. (tankUnit and self:GetUnitLabel(tankUnit) or "none"))
-    core:Print("Detected healer: " .. (healerUnit and self:GetUnitLabel(healerUnit) or "none"))
+    local tankUnit, healerUnit, usedMemory = self:ResolveRoleUnits(core)
+    local source = usedMemory and " (remembered for this dungeon)" or ""
+    core:Print("Detected tank: " .. (tankUnit and self:GetUnitLabel(tankUnit) or "none") .. source)
+    core:Print("Detected healer: " .. (healerUnit and self:GetUnitLabel(healerUnit) or "none") .. source)
 end
 
 function module:OnEvent(core, event)
@@ -344,13 +462,14 @@ function module:OnEvent(core, event)
     if not db then return end
 
     if event == "PLAYER_ENTERING_WORLD" or event == "ZONE_CHANGED_NEW_AREA" or event == "PARTY_MEMBERS_CHANGED" or event == "RAID_ROSTER_UPDATE" or event == "LFG_ROLE_CHECK_UPDATE" or event == "PLAYER_ROLES_ASSIGNED" then
+        self:SyncRoleMemory(core)
         self:ScheduleMark(core, db.delay or 1.5, 1)
         return
     end
 
     if event == "RAID_TARGET_UPDATE" and db.keepMarked then
         if self:ShouldMark(core) then
-            local tankUnit, healerUnit = self:GetRoleUnits(core)
+            local tankUnit, healerUnit = self:ResolveRoleUnits(core)
             local tankIcon = self:NormalizeIcon(db.tankIcon, 1)
             local healerIcon = self:NormalizeIcon(db.healerIcon, 5)
             local needMark = false
@@ -387,6 +506,7 @@ function module:OnEnable(core)
     SafeRegisterEvent(self.frame, "PLAYER_ROLES_ASSIGNED")
 
     local db = self:GetDB(core)
+    self:SyncRoleMemory(core)
     self:ScheduleMark(core, db and db.delay or 1.5, 1)
 end
 
@@ -403,6 +523,7 @@ function module:OnDisable(core)
     end
 
     self.pending = false
+    self:ClearRoleMemory()
 end
 
 function module:BuildOptions(core, panel, y)
@@ -423,6 +544,24 @@ function module:BuildOptions(core, panel, y)
     )
 
     core.optionControls[self.key].keepMarked = keepMarked
+    y = y - 30
+
+    local rememberDungeonRoles = core:CreateCheckbox(
+        panel,
+        "MinnTinkers_AutoMarkRoles_RememberDungeonRoles",
+        "Remember tank/healer through Mythic+ activation",
+        "Remember tank/healer through Mythic+ activation",
+        "Remembers the Star/Moon players for the current dungeon and lets Keep Marked restore them if Mythic+ activation removes role data or raid markers. Memory is cleared when you leave or enter another dungeon.",
+        42,
+        y,
+        core:GetModuleDB(self.key).rememberDungeonRoles,
+        function(checked)
+            core:GetModuleDB(module.key).rememberDungeonRoles = checked
+            if not checked then module:ClearRoleMemory() end
+        end
+    )
+
+    core.optionControls[self.key].rememberDungeonRoles = rememberDungeonRoles
     y = y - 30
 
     local markRaids = core:CreateCheckbox(
@@ -452,6 +591,10 @@ function module:RefreshOptions(core)
 
     if controls.keepMarked then
         controls.keepMarked:SetChecked(db.keepMarked and true or false)
+    end
+
+    if controls.rememberDungeonRoles then
+        controls.rememberDungeonRoles:SetChecked(db.rememberDungeonRoles and true or false)
     end
 
     if controls.markInRaids then
