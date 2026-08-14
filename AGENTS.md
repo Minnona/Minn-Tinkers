@@ -171,6 +171,7 @@ Expected settings pages:
 ```text
 Universal
 Raid Rolls
+Raid Lockouts
 PvP
 Felsworn
 Venomancer
@@ -297,6 +298,12 @@ Trusted announcer mode can start from:
 
 Parser must stay allowlist-based: require exactly one item link, accept only known roll/count/loot wording, and reject unknown conversational text.
 
+### RaidLockouts.lua
+
+Own tab: **Raid Lockouts**, between Raid Rolls and PvP.
+
+Stores account-wide character snapshots under `MinnTinkersDB.raidLockouts`. Scans only through `RequestRaidInfo` / `UPDATE_INSTANCE_INFO` and instance/login events; do not add permanent polling. Use the API-provided difficulty name first, preserve unknown custom difficulties, show offline scan age, and never imply that an offline character was queried live.
+
 ### BattlegroundsPvP.lua
 
 Own tab: **PvP**.
@@ -400,7 +407,7 @@ Future polish target: avoid permanent `OnUpdate`; only run while pending, visibl
 Current expected version after latest handoff:
 
 ```text
-0.1.34
+0.1.35
 ```
 
 When changing files, bump TOC version only when it is a real user-facing patch. Keep README/README.txt in sync if doing a release-style update.
@@ -439,6 +446,8 @@ ZG green/blue Need override defaults ON
 Raid Rolls tab keeps Supported starts note only
 Raid roll one item announces only one winner
 Raid roll 3x item announces only three winners, one per line
+Raid Lockouts shows Normal/Heroic/Mythic/Ascended saves across scanned characters
+Raid Lockouts labels offline snapshots with their last scan age
 Temporary OnUpdate handlers clear when done
 ```
 

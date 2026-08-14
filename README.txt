@@ -3,7 +3,7 @@ Minn Tinkers
 
 Personal WoW 3.3.5a quality-of-life addon.
 
-Version: 0.1.34
+Version: 0.1.35
 License: GPL-3.0
 
 Install:
@@ -14,12 +14,14 @@ Command:
 /minn
 
 Settings:
-- Saved per character through MinnTinkersCharDB.
+- Module settings are saved per character through MinnTinkersCharDB.
+- Raid lockout snapshots are shared across characters through MinnTinkersDB.
 - Specs are not used; class tools are separated by class tabs only.
 - The addon uses native Interface > AddOns categories.
 - Expand Minn Tinkers with the + button to see:
   - Universal
   - Raid Rolls
+  - Raid Lockouts
   - PvP
   - Felsworn
   - Venomancer
@@ -40,6 +42,12 @@ Raid Rolls:
 - Raid Roll Helper for master-looter MS/OS rolls.
 - Can track your own item links or trusted raid leader/master-looter item announcements.
 - Supports flexible safe starts like roll [item] MS, roll 1-100 [item], and [item] x2 roll MS.
+
+Raid Lockouts:
+- Collects the current character's saved raids when that character is logged in.
+- Shares Normal, Heroic, Mythic, Ascended, and unknown custom lockouts across characters on the account.
+- Supports by-raid and by-character views, current-realm filtering, expired snapshots, manual refresh, and forgetting the current character.
+- Offline data is labeled with its last scan time because offline characters cannot be queried directly.
 
 PvP:
 - Shows friendly and enemy flag-carrier names beside the matching Blizzard flag-status rows.
@@ -70,6 +78,11 @@ Most other controls are handled through the settings UI.
 Advanced/dev actions are under /minn debug.
 
 Changelog:
+
+0.1.35
+- Added the Raid Lockouts page and account-wide RaidLockouts module.
+- Added event-driven Normal, Heroic, Mythic, Ascended, and unknown custom raid lockout snapshots.
+- Added by-raid/by-character views, reset timers, scan ages, realm filtering, expired-data display, refresh, and forget controls.
 
 0.1.34
 - Added the PvP settings page and BattlegroundsPvP module.

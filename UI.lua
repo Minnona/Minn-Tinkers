@@ -11,6 +11,11 @@ local OPTION_CATEGORIES = {
         label = "Raid Rolls",
         desc = "Master-looter roll tracking and raid loot announcement tools."
     },
+    RaidLockouts = {
+        key = "RaidLockouts",
+        label = "Raid Lockouts",
+        desc = "Account-wide raid lockout snapshots collected from your characters."
+    },
     PvP = {
         key = "PvP",
         label = "PvP",
@@ -33,7 +38,7 @@ local OPTION_CATEGORIES = {
     }
 }
 
-local OPTION_ORDER = { "Universal", "RaidRolls", "PvP", "Felsworn", "Venomancer", "Debug" }
+local OPTION_ORDER = { "Universal", "RaidRolls", "RaidLockouts", "PvP", "Felsworn", "Venomancer", "Debug" }
 
 local function SetTooltip(owner, title, text)
     if not owner then return end
@@ -266,7 +271,7 @@ function MT:BuildParentPanel(panel)
     title:SetText("Minn Tinkers")
     y = y - 32
 
-    self:CreateText(panel, "Personal quality-of-life tools. Settings are saved separately per character.", 16, y, 560, "GameFontHighlightSmall")
+    self:CreateText(panel, "Personal quality-of-life tools. Settings are per character; raid lockout snapshots are account-wide.", 16, y, 560, "GameFontHighlightSmall")
     y = y - 34
 
     self:CreateText(panel, "Use the native AddOns list on the left and expand Minn Tinkers with the + button.", 16, y, 560, "GameFontHighlightSmall")
@@ -278,6 +283,10 @@ function MT:BuildParentPanel(panel)
     self:CreateText(panel, "Universal - general quality-of-life helpers", 28, y, 560, "GameFontHighlightSmall")
     y = y - 20
     self:CreateText(panel, "Raid Rolls - master-looter roll tracking and announcements", 28, y, 560, "GameFontHighlightSmall")
+    y = y - 20
+    self:CreateText(panel, "Raid Lockouts - account-wide raid save snapshots", 28, y, 560, "GameFontHighlightSmall")
+    y = y - 20
+    self:CreateText(panel, "PvP - battleground flag-carrier tracking and marking", 28, y, 560, "GameFontHighlightSmall")
     y = y - 20
     self:CreateText(panel, "Felsworn - Vengeful Pact and Man'ari Intuition", 28, y, 560, "GameFontHighlightSmall")
     y = y - 20

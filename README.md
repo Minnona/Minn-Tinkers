@@ -17,6 +17,7 @@ Personal utility addon for World of Warcraft 3.3.5a / Ascension.
 - Raid Roll Helper in its own Raid Rolls settings tab
 - Raid Roll Helper supports trusted raid leader/master-looter item announcements
 - Raid Roll Helper supports flexible safe starts like `roll [item] MS`, `roll 1-100 [item]`, and `[item] x2 roll MS`
+- Account-wide raid lockout snapshots for Normal, Heroic, Mythic, and Ascended raids
 - Configurable PvP flag-carrier names beside the matching Blizzard flag icons, with click targeting and automatic Square/Skull marking
 - Wardrobe Auto-Accept for appearance collection confirmations
 - Battleground Spoils Auto-Select for single stat-choice reward windows
