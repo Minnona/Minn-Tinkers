@@ -308,14 +308,16 @@ function module:FormatLockoutEntry(character, lockout, currentTime, includeRealm
     if includeRealm then name = name .. "-" .. tostring(character.realm or "UnknownRealm") end
 
     local remaining, resetKnown = self:GetRemaining(character, lockout, currentTime)
-    local timer = resetKnown and self:FormatDuration(remaining) or "reset unknown"
-    if resetKnown and remaining <= 0 then timer = "|cff777777" .. timer .. "|r" end
-
     local details = {}
+    if resetKnown then
+        local timer = self:FormatDuration(remaining)
+        if remaining <= 0 then timer = "|cff777777" .. timer .. "|r" end
+        table.insert(details, timer)
+    end
     if (tonumber(lockout.maxPlayers) or 0) > 0 then table.insert(details, tostring(lockout.maxPlayers) .. "p") end
     if lockout.extended then table.insert(details, "extended") end
-    if table.getn(details) > 0 then timer = timer .. ", " .. table.concat(details, ", ") end
-    return name .. " (" .. timer .. ")"
+    if table.getn(details) > 0 then return name .. " (" .. table.concat(details, ", ") .. ")" end
+    return name
 end
 
 function module:BuildRaidView(lines, characters, currentTime, showExpired, includeRealm)
@@ -395,11 +397,15 @@ function module:BuildCharacterView(lines, characters, currentTime, showExpired, 
                 visible = visible + 1
                 local difficulty = trim(lockout.difficultyKey)
                 local color = DIFFICULTY_COLOR[difficulty] or "|cffffffff"
-                local timer = resetKnown and self:FormatDuration(remaining) or "reset unknown"
-                if resetKnown and remaining <= 0 then timer = "|cff777777" .. timer .. "|r" end
                 local size = (tonumber(lockout.maxPlayers) or 0) > 0 and (" - " .. tostring(lockout.maxPlayers) .. "p") or ""
                 local extended = lockout.extended and " - extended" or ""
-                table.insert(lines, "  " .. tostring(lockout.name or "Unknown Raid") .. " - " .. color .. difficulty .. "|r" .. size .. " - " .. timer .. extended)
+                local timer = ""
+                if resetKnown then
+                    local timerText = self:FormatDuration(remaining)
+                    if remaining <= 0 then timerText = "|cff777777" .. timerText .. "|r" end
+                    timer = " - " .. timerText
+                end
+                table.insert(lines, "  " .. tostring(lockout.name or "Unknown Raid") .. " - " .. color .. difficulty .. "|r" .. size .. timer .. extended)
             end
         end
 

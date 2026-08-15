@@ -75,7 +75,7 @@ assert(string.find(report, "Mythic:", 1, true), "raid-grouped report omitted Myt
 assert(string.find(report, "Ascended:", 1, true), "raid-grouped report omitted Ascended")
 assert(string.find(report, "Testchar", 1, true), "raid-grouped report omitted the character")
 assert(string.find(report, "Snowgrave", 1, true), "zero-duration Ascension lockout disappeared from the report")
-assert(string.find(report, "reset unknown", 1, true), "unknown Ascension reset was not labeled honestly")
+assert(not string.find(report, "reset unknown", 1, true), "unknown-reset label was shown")
 
 local snowgrave
 for _, lockout in ipairs(character.lockouts) do
