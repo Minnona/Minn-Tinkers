@@ -8,10 +8,9 @@ MinnTinkers = {
 
 dofile("Modules/RaidRollHelper.lua")
 
+local settings = { enabled = true, maxCopies = 10 }
 local core = {
-    GetModuleDB = function()
-        return { maxCopies = 10 }
-    end
+    GetModuleDB = function() return settings end
 }
 
 local item = "|cffffffff|Hitem:123:0:0:0:0:0:0:0|h[Test Item]|h|r"
@@ -61,5 +60,37 @@ for index, text in ipairs(rejected) do
     local link = captured:ParseStartText(core, text)
     assert(link == nil, "rejected case " .. tostring(index) .. " was accepted")
 end
+
+local starts = 0
+local startedEvent
+captured.IsTrustedAnnouncer = function() return true, "raid leader" end
+captured.StartRoll = function(_, _, link, copies)
+    starts = starts + 1
+    startedEvent = { link = link, copies = copies }
+    return true
+end
+
+captured:OnIncomingChat(core, "CHAT_MSG_RAID_LEADER", "roll " .. item .. " MS", "Thefist")
+assert(starts == 1, "raid leader /raid message did not reach roll activation")
+assert(startedEvent.link == item and startedEvent.copies == 1, "raid leader start was parsed incorrectly")
+
+captured:OnIncomingChat(core, "CHAT_MSG_PARTY_LEADER", "roll " .. item, "Thefist")
+assert(starts == 1, "unsupported leader channel reached raid roll activation")
+
+local registered = {}
+local unregistered = {}
+local testFrame = {}
+function testFrame:SetScript() end
+function testFrame:RegisterEvent(event) registered[event] = true end
+function testFrame:UnregisterEvent(event) unregistered[event] = true end
+
+CreateFrame = function() return testFrame end
+hooksecurefunc = nil
+SendChatMessage = nil
+captured.frame = nil
+captured:OnEnable(core)
+assert(registered.CHAT_MSG_RAID_LEADER, "raid leader chat event was not registered")
+captured:OnDisable(core)
+assert(unregistered.CHAT_MSG_RAID_LEADER, "raid leader chat event was not unregistered")
 
 print("RaidRollHelper parser tests passed: " .. tostring(#accepted + #rejected))

@@ -298,6 +298,8 @@ Trusted announcer mode can start from:
 - raid leader item links
 ```
 
+Normal `/raid` messages from the raid leader arrive through `CHAT_MSG_RAID_LEADER`, while `/rw` uses `CHAT_MSG_RAID_WARNING`; trusted announcement tracking must register and accept both.
+
 Parser must stay allowlist-based: require exactly one item link, accept only known roll/count/loot wording, and reject unknown conversational text.
 
 ### RaidLockouts.lua
@@ -409,7 +411,7 @@ Future polish target: avoid permanent `OnUpdate`; only run while pending, visibl
 Current expected version after latest handoff:
 
 ```text
-0.1.41
+0.1.42
 ```
 
 When changing files, bump TOC version only when it is a real user-facing patch. Keep README/README.txt in sync if doing a release-style update.

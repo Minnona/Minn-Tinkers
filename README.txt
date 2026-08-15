@@ -3,7 +3,7 @@ Minn Tinkers
 
 Personal WoW 3.3.5a quality-of-life addon.
 
-Version: 0.1.41
+Version: 0.1.42
 License: GPL-3.0
 
 Install:
@@ -81,6 +81,10 @@ Most other controls are handled through the settings UI.
 Advanced/dev actions are under /minn debug.
 
 Changelog:
+
+0.1.42
+- Fixed trusted raid-leader item links sent through normal /raid chat not reaching Raid Roll Helper.
+- Raid warning links remain supported.
 
 0.1.41
 - Removed the current-realm and recently-expired checkboxes from Raid Lockouts.

@@ -675,7 +675,7 @@ function module:OnIncomingChat(core, event, text, sender)
     local db = self:GetDB(core)
     if not db or not db.enabled or self.active then return end
 
-    if event ~= "CHAT_MSG_RAID" and event ~= "CHAT_MSG_RAID_WARNING" then return end
+    if event ~= "CHAT_MSG_RAID" and event ~= "CHAT_MSG_RAID_LEADER" and event ~= "CHAT_MSG_RAID_WARNING" then return end
 
     if self:CountItemLinks(text) ~= 1 then return end
 
@@ -833,6 +833,7 @@ function module:OnEnable(core)
 
     register(self.frame, "CHAT_MSG_SYSTEM")
     register(self.frame, "CHAT_MSG_RAID")
+    register(self.frame, "CHAT_MSG_RAID_LEADER")
     register(self.frame, "CHAT_MSG_RAID_WARNING")
 
     if not self.hooked and hooksecurefunc and SendChatMessage then
@@ -845,6 +846,7 @@ function module:OnDisable(core)
     if self.frame then
         unregister(self.frame, "CHAT_MSG_SYSTEM")
         unregister(self.frame, "CHAT_MSG_RAID")
+        unregister(self.frame, "CHAT_MSG_RAID_LEADER")
         unregister(self.frame, "CHAT_MSG_RAID_WARNING")
         self.frame:SetScript("OnUpdate", nil)
     end
