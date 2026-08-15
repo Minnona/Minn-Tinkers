@@ -111,6 +111,33 @@ function module:FormatAge(timestamp, currentTime)
     return tostring(math.floor(elapsed / 86400)) .. "d ago"
 end
 
+function module:ResolveResetAt(currentTime, resetValue)
+    currentTime = tonumber(currentTime) or now_time()
+    resetValue = tonumber(resetValue)
+    if not resetValue or resetValue <= 0 then return 0, false end
+
+    -- The standard client returns seconds remaining. Some Ascension builds have
+    -- returned an absolute Unix timestamp instead, so accept both shapes.
+    if resetValue >= 1000000000 then return resetValue, true end
+    return currentTime + resetValue, true
+end
+
+function module:GetRemaining(character, lockout, currentTime)
+    currentTime = tonumber(currentTime) or now_time()
+    local resetAt = tonumber(lockout and lockout.resetAt) or 0
+    local resetKnown = lockout and lockout.resetKnown
+
+    if resetKnown == nil then
+        -- v0.1.35-v0.1.37 stored zero-duration Ascension lockouts with
+        -- resetAt equal to lastScan, which made them immediately disappear.
+        local lastScan = tonumber(character and character.lastScan) or 0
+        resetKnown = resetAt > 0 and resetAt > lastScan
+    end
+
+    if not resetKnown then return nil, false end
+    return resetAt - currentTime, true
+end
+
 function module:GetStore(core)
     local global = core and core.globalDB or MinnTinkersDB
     if type(global) ~= "table" then return nil end
@@ -153,7 +180,8 @@ function module:PruneStore(core, currentTime)
         for index = table.getn(character.lockouts), 1, -1 do
             local lockout = character.lockouts[index]
             local resetAt = type(lockout) == "table" and tonumber(lockout.resetAt) or 0
-            if resetAt > 0 and resetAt < currentTime - EXPIRED_RETENTION then
+            local _, resetKnown = self:GetRemaining(character, lockout, currentTime)
+            if resetKnown and resetAt > 0 and resetAt < currentTime - EXPIRED_RETENTION then
                 table.remove(character.lockouts, index)
             end
         end
@@ -169,6 +197,7 @@ function module:CollectCurrentLockouts(currentTime)
         local ok, name, instanceID, resetSeconds, difficultyID, locked, extended, instanceIDMostSig, isRaid, maxPlayers, difficultyName = pcall(GetSavedInstanceInfo, index)
         if ok and isRaid and (locked or extended) and trim(name) ~= "" then
             local normalizedDifficulty = self:NormalizeDifficulty(difficultyName, difficultyID)
+            local resetAt, resetKnown = self:ResolveResetAt(currentTime, resetSeconds)
             table.insert(lockouts, {
                 name = trim(name),
                 instanceID = instanceID,
@@ -179,7 +208,8 @@ function module:CollectCurrentLockouts(currentTime)
                 maxPlayers = tonumber(maxPlayers) or 0,
                 locked = locked and true or false,
                 extended = extended and true or false,
-                resetAt = currentTime + math.max(0, tonumber(resetSeconds) or 0)
+                resetAt = resetAt,
+                resetKnown = resetKnown
             })
         end
     end
@@ -277,9 +307,9 @@ function module:FormatLockoutEntry(character, lockout, currentTime, includeRealm
     local name = tostring(character.name or "Unknown")
     if includeRealm then name = name .. "-" .. tostring(character.realm or "UnknownRealm") end
 
-    local remaining = (tonumber(lockout.resetAt) or 0) - currentTime
-    local timer = self:FormatDuration(remaining)
-    if remaining <= 0 then timer = "|cff777777" .. timer .. "|r" end
+    local remaining, resetKnown = self:GetRemaining(character, lockout, currentTime)
+    local timer = resetKnown and self:FormatDuration(remaining) or "reset unknown"
+    if resetKnown and remaining <= 0 then timer = "|cff777777" .. timer .. "|r" end
 
     local details = {}
     if (tonumber(lockout.maxPlayers) or 0) > 0 then table.insert(details, tostring(lockout.maxPlayers) .. "p") end
@@ -293,8 +323,8 @@ function module:BuildRaidView(lines, characters, currentTime, showExpired, inclu
 
     for _, character in ipairs(characters) do
         for _, lockout in ipairs(character.lockouts or {}) do
-            local remaining = (tonumber(lockout.resetAt) or 0) - currentTime
-            if showExpired or remaining > 0 then
+            local remaining, resetKnown = self:GetRemaining(character, lockout, currentTime)
+            if not resetKnown or showExpired or remaining > 0 then
                 local raidName = trim(lockout.name)
                 local difficulty = trim(lockout.difficultyKey)
                 if raidName ~= "" then
@@ -360,13 +390,13 @@ function module:BuildCharacterView(lines, characters, currentTime, showExpired, 
 
         local visible = 0
         for _, lockout in ipairs(character.lockouts or {}) do
-            local remaining = (tonumber(lockout.resetAt) or 0) - currentTime
-            if showExpired or remaining > 0 then
+            local remaining, resetKnown = self:GetRemaining(character, lockout, currentTime)
+            if not resetKnown or showExpired or remaining > 0 then
                 visible = visible + 1
                 local difficulty = trim(lockout.difficultyKey)
                 local color = DIFFICULTY_COLOR[difficulty] or "|cffffffff"
-                local timer = self:FormatDuration(remaining)
-                if remaining <= 0 then timer = "|cff777777" .. timer .. "|r" end
+                local timer = resetKnown and self:FormatDuration(remaining) or "reset unknown"
+                if resetKnown and remaining <= 0 then timer = "|cff777777" .. timer .. "|r" end
                 local size = (tonumber(lockout.maxPlayers) or 0) > 0 and (" - " .. tostring(lockout.maxPlayers) .. "p") or ""
                 local extended = lockout.extended and " - extended" or ""
                 table.insert(lines, "  " .. tostring(lockout.name or "Unknown Raid") .. " - " .. color .. difficulty .. "|r" .. size .. " - " .. timer .. extended)
@@ -402,7 +432,8 @@ function module:BuildReport(core, currentTime)
         for _, character in ipairs(characters) do
             local active = 0
             for _, lockout in ipairs(character.lockouts or {}) do
-                if (tonumber(lockout.resetAt) or 0) > currentTime then active = active + 1 end
+                local remaining, resetKnown = self:GetRemaining(character, lockout, currentTime)
+                if not resetKnown or remaining > 0 then active = active + 1 end
             end
             local name = tostring(character.name or "Unknown")
             if not currentRealmOnly then name = name .. "-" .. tostring(character.realm or "UnknownRealm") end

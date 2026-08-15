@@ -3,7 +3,7 @@ Minn Tinkers
 
 Personal WoW 3.3.5a quality-of-life addon.
 
-Version: 0.1.37
+Version: 0.1.38
 License: GPL-3.0
 
 Install:
@@ -48,6 +48,7 @@ Raid Lockouts:
 - Shares Normal, Heroic, Mythic, Ascended, and unknown custom lockouts across characters on the account.
 - Supports by-raid and by-character views, current-realm filtering, expired snapshots, manual refresh, and forgetting the current character.
 - Offline data is labeled with its last scan time because offline characters cannot be queried directly.
+- If Ascension reports no reset duration for a locked raid, it remains visible as "reset unknown".
 
 PvP:
 - Automatically releases your spirit after death in battlegrounds when enabled.
@@ -79,6 +80,11 @@ Most other controls are handled through the settings UI.
 Advanced/dev actions are under /minn debug.
 
 Changelog:
+
+0.1.38
+- Fixed Ascension raid lockouts with a zero reset duration disappearing immediately after collection.
+- Lockouts with an unavailable reset duration remain visible and are labeled "reset unknown" instead of expired.
+- Reset parsing now accepts both standard remaining durations and absolute timestamps.
 
 0.1.37
 - Added a default-on PvP option to automatically release your spirit after death in battlegrounds.

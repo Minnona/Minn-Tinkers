@@ -21,6 +21,12 @@ assert(captured:NormalizeDifficulty("Heroic Bloodforged", 2) == "Heroic Bloodfor
 assert(captured:FormatDuration(90061) == "1d 1h", "day reset duration was formatted incorrectly")
 assert(captured:FormatDuration(3661) == "1h 1m", "hour reset duration was formatted incorrectly")
 assert(captured:FormatDuration(0) == "expired", "expired reset duration was formatted incorrectly")
+local durationResetAt, durationResetKnown = captured:ResolveResetAt(100000, 7200)
+assert(durationResetKnown and durationResetAt == 107200, "relative reset duration was not normalized")
+local absoluteResetAt, absoluteResetKnown = captured:ResolveResetAt(100000, 1787000000)
+assert(absoluteResetKnown and absoluteResetAt == 1787000000, "absolute reset timestamp was not preserved")
+local unknownResetAt, unknownResetKnown = captured:ResolveResetAt(100000, 0)
+assert(not unknownResetKnown and unknownResetAt == 0, "zero Ascension reset duration was treated as expired")
 
 local settings = {
     enabled = true,
@@ -45,7 +51,8 @@ local saved = {
     { "Blackwing Lair", 102, 9000, 4, false, false, 1, true, 40, "Heroic Raid" },
     { "Zul'Gurub", 103, 10800, 5, true, false, 1, true, 20, "Mythic Raid" },
     { "The Deadmines", 104, 12000, 5, true, false, 1, false, 5, "Mythic" },
-    { "Molten Core", 105, 14400, 6, false, true, 1, true, 40, "Ascended Raid" }
+    { "Molten Core", 105, 14400, 6, false, true, 1, true, 40, "Ascended Raid" },
+    { "Snowgrave (PvE)", 106, 0, 1, true, false, 0, true, 40, "Normal (10-25 Players)" }
 }
 
 GetNumSavedInstances = function() return table.getn(saved) end
@@ -58,7 +65,7 @@ local store = core.globalDB.raidLockouts
 local character
 for _, value in pairs(store.characters) do character = value end
 assert(character and character.name == "Testchar", "current character identity was not stored")
-assert(table.getn(character.lockouts) == 3, "snapshot did not keep exactly the locked raid instances: " .. tostring(table.getn(character.lockouts)))
+assert(table.getn(character.lockouts) == 4, "snapshot did not keep exactly the locked raid instances: " .. tostring(table.getn(character.lockouts)))
 assert(character.lockouts[1].resetAt == currentTime + 7200, "absolute reset time was not stored")
 
 local report = captured:BuildReport(core, currentTime)
@@ -67,6 +74,18 @@ assert(string.find(report, "Normal:", 1, true), "raid-grouped report omitted Nor
 assert(string.find(report, "Mythic:", 1, true), "raid-grouped report omitted Mythic")
 assert(string.find(report, "Ascended:", 1, true), "raid-grouped report omitted Ascended")
 assert(string.find(report, "Testchar", 1, true), "raid-grouped report omitted the character")
+assert(string.find(report, "Snowgrave", 1, true), "zero-duration Ascension lockout disappeared from the report")
+assert(string.find(report, "reset unknown", 1, true), "unknown Ascension reset was not labeled honestly")
+
+local snowgrave
+for _, lockout in ipairs(character.lockouts) do
+    if lockout.name == "Snowgrave (PvE)" then snowgrave = lockout end
+end
+assert(snowgrave and snowgrave.resetKnown == false, "zero-duration lockout was not stored as reset-unknown")
+snowgrave.resetAt = character.lastScan
+snowgrave.resetKnown = nil
+report = captured:BuildReport(core, currentTime + 60)
+assert(string.find(report, "Snowgrave", 1, true), "legacy zero-duration snapshot disappeared as expired")
 
 store.characters.other = {
     name = "Otherchar",
@@ -100,6 +119,7 @@ settings.viewMode = "character"
 report = captured:BuildReport(core, currentTime)
 assert(string.find(report, "scanned", 1, true), "character-grouped view omitted scan age")
 assert(string.find(report, "Zul'Gurub", 1, true), "character-grouped view omitted a lockout")
+assert(string.find(report, "Snowgrave", 1, true), "character-grouped view omitted an unknown-reset lockout")
 
 captured:ForgetCurrentCharacter(core)
 local foundCurrent = false
