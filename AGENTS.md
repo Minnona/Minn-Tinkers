@@ -304,7 +304,7 @@ Parser must stay allowlist-based: require exactly one item link, accept only kno
 
 Own tab: **Raid Lockouts**, between Raid Rolls and PvP.
 
-Stores account-wide character snapshots under `MinnTinkersDB.raidLockouts`. Scans only through `RequestRaidInfo` / `UPDATE_INSTANCE_INFO` and instance/login events; do not add permanent polling. Use the API-provided difficulty name first, preserve unknown custom difficulties, show offline scan age, and never imply that an offline character was queried live. Ascension may return a zero reset duration for a visibly locked raid; retain those lockouts without a timer instead of treating them as immediately expired.
+Stores account-wide character snapshots under `MinnTinkersDB.raidLockouts`. Scans only through `RequestRaidInfo` / `UPDATE_INSTANCE_INFO` and instance/login events; do not add permanent polling. The report is always current-realm-only and hides expired entries. Use the API-provided difficulty name first, preserve unknown custom difficulties, show offline scan age, and never imply that an offline character was queried live. Ascension may return a zero reset duration for a visibly locked raid; retain those lockouts without a timer instead of treating them as immediately expired.
 
 ### BattlegroundsPvP.lua
 
@@ -409,7 +409,7 @@ Future polish target: avoid permanent `OnUpdate`; only run while pending, visibl
 Current expected version after latest handoff:
 
 ```text
-0.1.40
+0.1.41
 ```
 
 When changing files, bump TOC version only when it is a real user-facing patch. Keep README/README.txt in sync if doing a release-style update.

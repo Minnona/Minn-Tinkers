@@ -3,7 +3,7 @@ Minn Tinkers
 
 Personal WoW 3.3.5a quality-of-life addon.
 
-Version: 0.1.40
+Version: 0.1.41
 License: GPL-3.0
 
 Install:
@@ -47,7 +47,7 @@ Raid Rolls:
 Raid Lockouts:
 - Collects the current character's saved raids when that character is logged in.
 - Shares Normal, Heroic, Mythic, Ascended, and unknown custom lockouts across characters on the account.
-- Supports by-raid and by-character views, current-realm filtering, expired snapshots, manual refresh, and forgetting the current character.
+- Supports by-raid and by-character views, current-realm-only display, manual refresh, and forgetting the current character.
 - Offline data is labeled with its last scan time because offline characters cannot be queried directly.
 - If Ascension reports no reset duration for a locked raid, the lockout remains visible without a timer.
 
@@ -81,6 +81,10 @@ Most other controls are handled through the settings UI.
 Advanced/dev actions are under /minn debug.
 
 Changelog:
+
+0.1.41
+- Removed the current-realm and recently-expired checkboxes from Raid Lockouts.
+- Raid Lockouts now always shows the current realm and hides expired entries.
 
 0.1.40
 - Removed 25p/40p maximum-size labels from raid lockout displays.

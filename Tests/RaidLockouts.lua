@@ -30,8 +30,6 @@ assert(not unknownResetKnown and unknownResetAt == 0, "zero Ascension reset dura
 
 local settings = {
     enabled = true,
-    currentRealmOnly = true,
-    showExpired = false,
     viewMode = "raid"
 }
 local core = {
@@ -107,14 +105,10 @@ report = captured:BuildReport(core, currentTime)
 assert(not string.find(report, "Otherchar", 1, true), "current-realm view included another realm")
 
 settings.currentRealmOnly = false
-report = captured:BuildReport(core, currentTime)
-assert(string.find(report, "Otherchar%-Area 52") ~= nil, "all-realm view omitted the other character")
-assert(not string.find(report, "Expired Raid", 1, true), "expired lockout was shown while hidden")
-
 settings.showExpired = true
 report = captured:BuildReport(core, currentTime)
-assert(string.find(report, "Expired Raid", 1, true), "expired lockout was omitted when enabled")
-assert(string.find(report, "stale", 1, true), "stale character snapshot was not identified")
+assert(not string.find(report, "Otherchar", 1, true), "legacy setting exposed another realm")
+assert(not string.find(report, "Expired Raid", 1, true), "legacy setting exposed an expired lockout")
 
 settings.viewMode = "character"
 report = captured:BuildReport(core, currentTime)

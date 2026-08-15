@@ -25,8 +25,6 @@ local module = {
     category = "RaidLockouts",
     defaults = {
         enabled = true,
-        currentRealmOnly = true,
-        showExpired = false,
         viewMode = "raid"
     }
 }
@@ -415,18 +413,16 @@ end
 function module:BuildReport(core, currentTime)
     currentTime = tonumber(currentTime) or now_time()
     local db = self:GetSettings(core)
-    local currentRealmOnly = db.currentRealmOnly ~= false
-    local showExpired = db.showExpired and true or false
-    local characters = self:GetVisibleCharacters(core, currentTime, currentRealmOnly)
+    local characters = self:GetVisibleCharacters(core, currentTime, true)
     local lines = {}
 
     table.insert(lines, "|cffaaaaaaOffline characters show their last collected snapshot; log into them to refresh it.|r")
     table.insert(lines, "")
 
     if db.viewMode == "character" then
-        self:BuildCharacterView(lines, characters, currentTime, showExpired, not currentRealmOnly)
+        self:BuildCharacterView(lines, characters, currentTime, false, false)
     else
-        self:BuildRaidView(lines, characters, currentTime, showExpired, not currentRealmOnly)
+        self:BuildRaidView(lines, characters, currentTime, false, false)
     end
 
     table.insert(lines, "|cffffd100Known characters|r")
@@ -440,7 +436,6 @@ function module:BuildReport(core, currentTime)
                 if not resetKnown or remaining > 0 then active = active + 1 end
             end
             local name = tostring(character.name or "Unknown")
-            if not currentRealmOnly then name = name .. "-" .. tostring(character.realm or "UnknownRealm") end
             local age = self:FormatAge(character.lastScan, currentTime)
             if currentTime - (tonumber(character.lastScan) or 0) > STALE_SECONDS then age = "|cffff6666" .. age .. " (stale)|r" end
             table.insert(lines, "  " .. name .. " - " .. tostring(active) .. " active - scanned " .. age)
@@ -509,39 +504,6 @@ end
 function module:BuildOptions(core, panel, y)
     core.optionControls[self.key] = core.optionControls[self.key] or {}
     local controls = core.optionControls[self.key]
-    local db = self:GetSettings(core)
-
-    controls.currentRealmOnly = core:CreateCheckbox(
-        panel,
-        "MinnTinkers_RaidLockouts_CurrentRealmOnly",
-        "Show current realm only",
-        "Show current realm only",
-        "Hides snapshots collected from characters on other realms without deleting them.",
-        42,
-        y,
-        db.currentRealmOnly,
-        function(checked)
-            core:GetModuleDB(module.key).currentRealmOnly = checked
-            module:RefreshReport(core)
-        end
-    )
-    y = y - 30
-
-    controls.showExpired = core:CreateCheckbox(
-        panel,
-        "MinnTinkers_RaidLockouts_ShowExpired",
-        "Show recently expired lockouts",
-        "Show recently expired lockouts",
-        "Displays expired offline snapshots for up to 30 days. Current-character scans replace old data immediately.",
-        42,
-        y,
-        db.showExpired,
-        function(checked)
-            core:GetModuleDB(module.key).showExpired = checked
-            module:RefreshReport(core)
-        end
-    )
-    y = y - 36
 
     controls.viewMode = core:CreateOptionButton(panel, "MinnTinkers_RaidLockouts_View", "View: by raid", 42, y, 160, 24, function()
         local settings = core:GetModuleDB(module.key)
@@ -583,8 +545,6 @@ function module:RefreshOptions(core)
     local db = self:GetSettings(core)
     if not controls or not db then return end
 
-    if controls.currentRealmOnly then controls.currentRealmOnly:SetChecked(db.currentRealmOnly and true or false) end
-    if controls.showExpired then controls.showExpired:SetChecked(db.showExpired and true or false) end
     self:RefreshReport(core)
 end
 
