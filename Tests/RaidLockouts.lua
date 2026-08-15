@@ -76,6 +76,7 @@ assert(string.find(report, "Ascended:", 1, true), "raid-grouped report omitted A
 assert(string.find(report, "Testchar", 1, true), "raid-grouped report omitted the character")
 assert(string.find(report, "Snowgrave", 1, true), "zero-duration Ascension lockout disappeared from the report")
 assert(not string.find(report, "reset unknown", 1, true), "unknown-reset label was shown")
+assert(not string.find(report, "40p", 1, true), "maximum raid size was shown in the raid view")
 
 local snowgrave
 for _, lockout in ipairs(character.lockouts) do
@@ -120,6 +121,7 @@ report = captured:BuildReport(core, currentTime)
 assert(string.find(report, "scanned", 1, true), "character-grouped view omitted scan age")
 assert(string.find(report, "Zul'Gurub", 1, true), "character-grouped view omitted a lockout")
 assert(string.find(report, "Snowgrave", 1, true), "character-grouped view omitted an unknown-reset lockout")
+assert(not string.find(report, "40p", 1, true), "maximum raid size was shown in the character view")
 
 captured:ForgetCurrentCharacter(core)
 local foundCurrent = false

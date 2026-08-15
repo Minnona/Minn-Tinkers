@@ -314,7 +314,6 @@ function module:FormatLockoutEntry(character, lockout, currentTime, includeRealm
         if remaining <= 0 then timer = "|cff777777" .. timer .. "|r" end
         table.insert(details, timer)
     end
-    if (tonumber(lockout.maxPlayers) or 0) > 0 then table.insert(details, tostring(lockout.maxPlayers) .. "p") end
     if lockout.extended then table.insert(details, "extended") end
     if table.getn(details) > 0 then return name .. " (" .. table.concat(details, ", ") .. ")" end
     return name
@@ -397,7 +396,6 @@ function module:BuildCharacterView(lines, characters, currentTime, showExpired, 
                 visible = visible + 1
                 local difficulty = trim(lockout.difficultyKey)
                 local color = DIFFICULTY_COLOR[difficulty] or "|cffffffff"
-                local size = (tonumber(lockout.maxPlayers) or 0) > 0 and (" - " .. tostring(lockout.maxPlayers) .. "p") or ""
                 local extended = lockout.extended and " - extended" or ""
                 local timer = ""
                 if resetKnown then
@@ -405,7 +403,7 @@ function module:BuildCharacterView(lines, characters, currentTime, showExpired, 
                     if remaining <= 0 then timerText = "|cff777777" .. timerText .. "|r" end
                     timer = " - " .. timerText
                 end
-                table.insert(lines, "  " .. tostring(lockout.name or "Unknown Raid") .. " - " .. color .. difficulty .. "|r" .. size .. timer .. extended)
+                table.insert(lines, "  " .. tostring(lockout.name or "Unknown Raid") .. " - " .. color .. difficulty .. "|r" .. timer .. extended)
             end
         end
 

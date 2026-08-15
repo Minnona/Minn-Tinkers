@@ -322,6 +322,9 @@ function MT:BuildOptionsCategory(key)
         self:BuildModulePage(page, key)
     end
 
+    panel:SetScript("OnShow", function()
+        MT:RememberOptionsCategory(key)
+    end)
     InterfaceOptions_AddCategory(panel)
     return panel
 end
@@ -347,6 +350,24 @@ function MT:BuildOptions()
 
     self.defaultOptionsPanel = self.optionsCategoryPanels.Universal or panel
     self:RefreshOptions()
+end
+
+function MT:RememberOptionsCategory(key)
+    if not self.db or not self.optionsCategoryPanels then return end
+    if not self.optionsCategoryPanels[key] then return end
+    self.db.lastOptionsCategory = key
+end
+
+function MT:GetLastOptionsPanel()
+    local key = self.db and self.db.lastOptionsCategory or nil
+    local panel = self.optionsCategoryPanels and key and self.optionsCategoryPanels[key] or nil
+    if panel then return panel end
+
+    panel = self.defaultOptionsPanel or self.optionsPanel
+    if self.db and self.optionsCategoryPanels and self.optionsCategoryPanels.Universal then
+        self.db.lastOptionsCategory = "Universal"
+    end
+    return panel
 end
 
 function MT:RefreshDebugPage()
@@ -420,7 +441,8 @@ end
 function MT:OpenOptions()
     if not self.optionsPanel then return end
 
-    local panel = self.defaultOptionsPanel or self.optionsPanel
+    local panel = self:GetLastOptionsPanel()
+    if not panel then return end
     InterfaceOptionsFrame_OpenToCategory(panel)
     InterfaceOptionsFrame_OpenToCategory(panel)
 end

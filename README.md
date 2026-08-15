@@ -4,7 +4,7 @@ Personal utility addon for World of Warcraft 3.3.5a / Ascension.
 
 ## Features
 
-- Frog minimap button for opening settings
+- Frog minimap button for reopening the last-used settings tab
 - Auto-sell grey items
 - Auto-skip safe single-option gossip
 - Auto-mark tank and healer roles, with same-dungeon memory through Mythic+ activation

@@ -3,7 +3,7 @@ Minn Tinkers
 
 Personal WoW 3.3.5a quality-of-life addon.
 
-Version: 0.1.39
+Version: 0.1.40
 License: GPL-3.0
 
 Install:
@@ -18,6 +18,7 @@ Settings:
 - Raid lockout snapshots are shared across characters through MinnTinkersDB.
 - Specs are not used; class tools are separated by class tabs only.
 - The addon uses native Interface > AddOns categories.
+- /minn and the minimap button reopen the last Minn Tinkers tab used by that character.
 - Expand Minn Tinkers with the + button to see:
   - Universal
   - Raid Rolls
@@ -80,6 +81,10 @@ Most other controls are handled through the settings UI.
 Advanced/dev actions are under /minn debug.
 
 Changelog:
+
+0.1.40
+- Removed 25p/40p maximum-size labels from raid lockout displays.
+- /minn and the minimap button now remember and reopen the last-used settings tab per character.
 
 0.1.39
 - Removed the "reset unknown" label; lockouts without an available reset duration are simply listed without a timer.

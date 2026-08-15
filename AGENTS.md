@@ -100,6 +100,8 @@ Every temporary `OnUpdate` must have a clear stop condition.
 
 Settings are built through module `BuildOptions` methods and native Interface Options child pages.
 
+`/minn` and the minimap button reopen the last-used child page stored per character, falling back to Universal if that page is unavailable.
+
 Keep UI compact:
 
 ```text
@@ -407,7 +409,7 @@ Future polish target: avoid permanent `OnUpdate`; only run while pending, visibl
 Current expected version after latest handoff:
 
 ```text
-0.1.39
+0.1.40
 ```
 
 When changing files, bump TOC version only when it is a real user-facing patch. Keep README/README.txt in sync if doing a release-style update.
