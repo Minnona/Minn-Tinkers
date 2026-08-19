@@ -13,6 +13,7 @@ Personal utility addon for World of Warcraft 3.3.5a / Ascension.
 - Buff reminder buttons
 - Per-character settings
 - Native Interface > AddOns settings pages
+- Per-window numbered-channel suppression in dungeons, raids, and battlegrounds
 - Smart dungeon rolls, including a Zul'Gurub green/blue Need override
 - Raid Roll Helper in its own Raid Rolls settings tab
 - Raid Roll Helper supports trusted raid leader/master-looter item announcements

@@ -6,6 +6,11 @@ local OPTION_CATEGORIES = {
         label = "Universal",
         desc = "Shared tools that make sense on every character."
     },
+    Chat = {
+        key = "Chat",
+        label = "Chat",
+        desc = "Instance channel suppression for selected chat windows."
+    },
     RaidRolls = {
         key = "RaidRolls",
         label = "Raid Rolls",
@@ -38,7 +43,7 @@ local OPTION_CATEGORIES = {
     }
 }
 
-local OPTION_ORDER = { "Universal", "RaidRolls", "RaidLockouts", "PvP", "Felsworn", "Venomancer", "Debug" }
+local OPTION_ORDER = { "Universal", "Chat", "RaidRolls", "RaidLockouts", "PvP", "Felsworn", "Venomancer", "Debug" }
 
 local function SetTooltip(owner, title, text)
     if not owner then return end
@@ -281,6 +286,8 @@ function MT:BuildParentPanel(panel)
     y = y - 24
 
     self:CreateText(panel, "Universal - general quality-of-life helpers", 28, y, 560, "GameFontHighlightSmall")
+    y = y - 20
+    self:CreateText(panel, "Chat - hide selected numbered channels inside instances", 28, y, 560, "GameFontHighlightSmall")
     y = y - 20
     self:CreateText(panel, "Raid Rolls - master-looter roll tracking and announcements", 28, y, 560, "GameFontHighlightSmall")
     y = y - 20

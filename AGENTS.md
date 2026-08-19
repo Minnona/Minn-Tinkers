@@ -172,6 +172,7 @@ Expected settings pages:
 
 ```text
 Universal
+Chat
 Raid Rolls
 Raid Lockouts
 PvP
@@ -302,6 +303,16 @@ Normal `/raid` messages from the raid leader arrive through `CHAT_MSG_RAID_LEADE
 
 Parser must stay allowlist-based: require exactly one item link, accept only known roll/count/loot wording, and reject unknown conversational text.
 
+### InstanceChannelMute.lua
+
+Own tab: **Chat**, between Universal and Raid Rolls.
+
+Temporarily removes selected numbered channels from selected chat windows while inside enabled instance types. It must not leave channels or alter message groups such as Raid, Party, Say, Loot, whispers, or guild chat.
+
+Scope settings are independent for party dungeons, raid instances, and battlegrounds (`pvp`). Arenas remain excluded unless explicitly added later.
+
+Store the exact channel names removed from each chat window in the per-character restore ledger. Restore only those recorded assignments when leaving the instance, disabling the module, or changing its configuration. The ledger must survive `/reload` inside an instance. Keep the workflow event-driven with no permanent polling.
+
 ### RaidLockouts.lua
 
 Own tab: **Raid Lockouts**, between Raid Rolls and PvP.
@@ -411,7 +422,7 @@ Future polish target: avoid permanent `OnUpdate`; only run while pending, visibl
 Current expected version after latest handoff:
 
 ```text
-0.1.42
+0.1.43
 ```
 
 When changing files, bump TOC version only when it is a real user-facing patch. Keep README/README.txt in sync if doing a release-style update.
@@ -452,6 +463,8 @@ Raid roll one item announces only one winner
 Raid roll 3x item announces only three winners, one per line
 Raid Lockouts shows Normal/Heroic/Mythic/Ascended saves across scanned characters
 Raid Lockouts labels offline snapshots with their last scan age
+Chat suppression restores only the selected numbered channels to their original windows after raids, dungeons, and battlegrounds
+Chat suppression leaves arenas and non-channel message groups unchanged
 Auto-mark Roles restores remembered Star/Moon players after Mythic+ activation
 Temporary OnUpdate handlers clear when done
 ```

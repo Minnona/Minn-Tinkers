@@ -3,7 +3,7 @@ Minn Tinkers
 
 Personal WoW 3.3.5a quality-of-life addon.
 
-Version: 0.1.42
+Version: 0.1.43
 License: GPL-3.0
 
 Install:
@@ -21,6 +21,7 @@ Settings:
 - /minn and the minimap button reopen the last Minn Tinkers tab used by that character.
 - Expand Minn Tinkers with the + button to see:
   - Universal
+  - Chat
   - Raid Rolls
   - Raid Lockouts
   - PvP
@@ -38,6 +39,12 @@ Universal:
 - Battleground Spoils Auto-Select for single stat-choice reward windows.
 - Popup Guard for protected invites, summons, resurrection, dungeon/LFG, and battleground queue popups.
 - Mark tank with Star and healer with Moon from RDF/LFG role data, with optional same-dungeon memory through Mythic+ activation.
+
+Chat:
+- Temporarily hides selected numbered channels from selected chat windows inside dungeons, raids, and battlegrounds.
+- Dungeon, raid, and battleground suppression are separate settings; arenas are not affected.
+- You remain joined to suppressed channels, and Raid, Party, Say, Loot, whispers, guild chat, and other message groups are unchanged.
+- Original chat-window channel assignments are restored when leaving the instance or disabling the module, including after a /reload inside the instance.
 
 Raid Rolls:
 - Raid Roll Helper for master-looter MS/OS rolls.
@@ -81,6 +88,11 @@ Most other controls are handled through the settings UI.
 Advanced/dev actions are under /minn debug.
 
 Changelog:
+
+0.1.43
+- Added a Chat settings page and per-window numbered-channel suppression module.
+- Added separate dungeon, raid, and battleground scope settings; arenas remain excluded.
+- Suppressed channels remain joined and return to their original chat windows after leaving the instance or disabling the module.
 
 0.1.42
 - Fixed trusted raid-leader item links sent through normal /raid chat not reaching Raid Roll Helper.

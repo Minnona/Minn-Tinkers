@@ -7,6 +7,7 @@ end
 dofile("UI.lua")
 
 local universalPanel = { name = "Universal" }
+local chatPanel = { name = "Chat" }
 local pvpPanel = { name = "PvP" }
 local opened = {}
 
@@ -18,6 +19,7 @@ MinnTinkers.db = {}
 MinnTinkers.optionsPanel = { name = "Minn Tinkers" }
 MinnTinkers.optionsCategoryPanels = {
     Universal = universalPanel,
+    Chat = chatPanel,
     PvP = pvpPanel
 }
 MinnTinkers.defaultOptionsPanel = universalPanel
@@ -26,6 +28,12 @@ MinnTinkers:RememberOptionsCategory("PvP")
 assert(MinnTinkers.db.lastOptionsCategory == "PvP", "last options category was not remembered")
 MinnTinkers:OpenOptions()
 assert(table.getn(opened) == 2 and opened[1] == pvpPanel and opened[2] == pvpPanel, "saved PvP category was not reopened")
+
+opened = {}
+MinnTinkers:RememberOptionsCategory("Chat")
+MinnTinkers:OpenOptions()
+assert(MinnTinkers.db.lastOptionsCategory == "Chat", "Chat options category was not remembered")
+assert(table.getn(opened) == 2 and opened[1] == chatPanel and opened[2] == chatPanel, "saved Chat category was not reopened")
 
 opened = {}
 MinnTinkers.db.lastOptionsCategory = "RemovedCategory"
