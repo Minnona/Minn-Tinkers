@@ -309,6 +309,8 @@ Own tab: **Chat**, between Universal and Raid Rolls.
 
 Temporarily removes selected numbered channels from selected chat windows while inside enabled instance types. It must not leave channels or alter message groups such as Raid, Party, Say, Loot, whispers, or guild chat.
 
+Discover configured windows from their visible `ChatFrameNTab` labels before falling back to `GetChatWindowInfo`; Ascension may return useful API names only for Combat Log. Treat docked tabs as separate selectable windows. Discover channel assignments from each frame's `channelList`, with `GetChatWindowChannels` as a fallback, and use the client's two-value `GetChannelList` stride for joined-channel choices.
+
 Scope settings are independent for party dungeons, raid instances, and battlegrounds (`pvp`). Arenas remain excluded unless explicitly added later.
 
 Store the exact channel names removed from each chat window in the per-character restore ledger. Restore only those recorded assignments when leaving the instance, disabling the module, or changing its configuration. The ledger must survive `/reload` inside an instance. Keep the workflow event-driven with no permanent polling.
@@ -422,7 +424,7 @@ Future polish target: avoid permanent `OnUpdate`; only run while pending, visibl
 Current expected version after latest handoff:
 
 ```text
-0.1.43
+0.1.44
 ```
 
 When changing files, bump TOC version only when it is a real user-facing patch. Keep README/README.txt in sync if doing a release-style update.

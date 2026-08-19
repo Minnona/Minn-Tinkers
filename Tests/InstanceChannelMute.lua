@@ -22,12 +22,24 @@ local eventFrame = {
 
 CreateFrame = function() return eventFrame end
 
-ChatFrame1 = { index = 1 }
-ChatFrame3 = { index = 3 }
+local function new_tab(text)
+    return { GetText = function() return text end }
+end
+
+ChatFrame1 = { index = 1, channelList = { "General - Stormwind City", "World", "Trade - City" } }
+ChatFrame2 = { index = 2, channelList = {} }
+ChatFrame3 = { index = 3, channelList = { "World", "Ascension", "Newcomers", "Trade" } }
+ChatFrame4 = { index = 4, channelList = {} }
+ChatFrame5 = { index = 5, channelList = {} }
+
+ChatFrame1Tab = new_tab("General")
+ChatFrame2Tab = new_tab("Log")
+ChatFrame3Tab = new_tab("Loot / Trade")
+ChatFrame4Tab = new_tab("Guild")
+ChatFrame5Tab = new_tab("Whisper")
 
 local windowNames = {
-    [1] = "General",
-    [3] = "Channels"
+    [2] = "Combat Log"
 }
 
 local memberships = {
@@ -43,6 +55,10 @@ local memberships = {
 
 GetChatWindowInfo = function(index)
     return windowNames[index]
+end
+
+GetChannelList = function()
+    return 4, "Ascension", 5, "Newcomers"
 end
 
 GetChatWindowChannels = function(index)
@@ -68,6 +84,9 @@ ChatFrame_RemoveChannel = function(frame, name)
     table.insert(removes, { frame = frame.index, name = name })
     local position = find_channel(frame.index, name)
     if position then table.remove(memberships[frame.index], position) end
+    for channelPosition, channelName in pairs(frame.channelList or {}) do
+        if channelName == name then frame.channelList[channelPosition] = nil end
+    end
 end
 
 ChatFrame_AddChannel = function(frame, name)
@@ -76,6 +95,11 @@ ChatFrame_AddChannel = function(frame, name)
         memberships[frame.index] = memberships[frame.index] or {}
         table.insert(memberships[frame.index], { name, 99 })
     end
+    frame.channelList = frame.channelList or {}
+    for _, channelName in pairs(frame.channelList) do
+        if channelName == name then return end
+    end
+    table.insert(frame.channelList, name)
 end
 
 local inInstance = true
@@ -106,7 +130,16 @@ local core = {
 }
 
 local windows = captured:DiscoverWindows(core)
-assert(table.getn(windows) == 2, "configured chat windows were not discovered")
+assert(table.getn(windows) == 5, "docked chat tabs were not discovered")
+assert(windows[1].label == "General (window 1)", "General tab label was not used")
+assert(windows[2].label == "Log (window 2)", "visible Log tab label did not override the API name")
+assert(windows[3].label == "Loot / Trade (window 3)", "right-side chat tab was not discovered")
+
+local discovered = {}
+for _, channel in ipairs(captured:DiscoverChannels(core)) do discovered[channel.key] = channel.name end
+assert(discovered.ascension == "Ascension", "joined Ascension channel was not discovered")
+assert(discovered.newcomers == "Newcomers", "joined Newcomers channel was not discovered")
+assert(discovered.trade, "chat-frame Trade assignment was not discovered")
 
 local channels = captured:GetWindowChannelMap(1)
 assert(channels.general == "General - Stormwind City", "zone-specific General channel was not normalized")

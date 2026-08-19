@@ -3,7 +3,7 @@ Minn Tinkers
 
 Personal WoW 3.3.5a quality-of-life addon.
 
-Version: 0.1.43
+Version: 0.1.44
 License: GPL-3.0
 
 Install:
@@ -88,6 +88,10 @@ Most other controls are handled through the settings UI.
 Advanced/dev actions are under /minn debug.
 
 Changelog:
+
+0.1.44
+- Chat suppression now discovers every configured chat tab from its visible tab label, including docked ElvUI tabs.
+- Numbered-channel choices now use live chat-frame assignments and the Ascension joined-channel list.
 
 0.1.43
 - Added a Chat settings page and per-window numbered-channel suppression module.

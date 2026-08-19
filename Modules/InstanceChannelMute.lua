@@ -62,29 +62,44 @@ function module:GetChatFrame(index)
     return _G["ChatFrame" .. tostring(index)]
 end
 
+function module:GetWindowName(index)
+    local name = ""
+    local tab = _G["ChatFrame" .. tostring(index) .. "Tab"]
+    if tab and tab.GetText then name = trim(tab:GetText()) end
+
+    if name == "" and GetChatWindowInfo then name = trim(GetChatWindowInfo(index)) end
+    return name
+end
+
 function module:GetWindowLabel(index)
-    local name = nil
-    if GetChatWindowInfo then name = GetChatWindowInfo(index) end
-    name = trim(name)
-
-    if name == "" then
-        local tab = _G["ChatFrame" .. tostring(index) .. "Tab"]
-        if tab and tab.GetText then name = trim(tab:GetText()) end
-    end
-
+    local name = self:GetWindowName(index)
     if name == "" then name = "Chat " .. tostring(index) end
     return name .. " (window " .. tostring(index) .. ")"
 end
 
 function module:GetWindowChannelMap(index)
     local channels = {}
+    local frame = self:GetChatFrame(index)
+
+    if frame and type(frame.channelList) == "table" then
+        for _, value in pairs(frame.channelList) do
+            local name = trim(value)
+            local key = channel_key(name)
+            if key ~= "" then channels[key] = name end
+        end
+    end
+
     if not GetChatWindowChannels then return channels end
 
     local values = { GetChatWindowChannels(index) }
-    for position = 1, table.getn(values), 2 do
+    local position = 1
+    while position <= table.getn(values) do
         local name = trim(values[position])
         local key = channel_key(name)
         if key ~= "" then channels[key] = name end
+
+        if type(values[position + 1]) == "number" then position = position + 2
+        else position = position + 1 end
     end
     return channels
 end
@@ -95,8 +110,8 @@ function module:DiscoverWindows(core)
 
     for index = 1, MAX_CHAT_WINDOWS do
         local frame = self:GetChatFrame(index)
-        local name = GetChatWindowInfo and GetChatWindowInfo(index) or nil
-        if frame and (trim(name) ~= "" or db.selectedFrames[tostring(index)]) then
+        local name = self:GetWindowName(index)
+        if frame and (name ~= "" or db.selectedFrames[tostring(index)]) then
             table.insert(windows, { index = index, label = self:GetWindowLabel(index) })
         end
     end
@@ -107,6 +122,25 @@ end
 function module:DiscoverChannels(core)
     local db = self:GetDB(core) or self.defaults
     local found = {}
+
+    if GetChannelList then
+        local joined = { GetChannelList() }
+        local position = 1
+        while position <= table.getn(joined) do
+            local name = nil
+            if type(joined[position]) == "number" and type(joined[position + 1]) == "string" then
+                name = joined[position + 1]
+                position = position + 2
+            else
+                name = joined[position]
+                position = position + 1
+            end
+
+            name = trim(name)
+            local key = channel_key(name)
+            if key ~= "" then found[key] = name end
+        end
+    end
 
     for index = 1, MAX_CHAT_WINDOWS do
         for key, name in pairs(self:GetWindowChannelMap(index)) do
