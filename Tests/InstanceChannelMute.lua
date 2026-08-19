@@ -38,6 +38,13 @@ ChatFrame3Tab = new_tab("Loot / Trade")
 ChatFrame4Tab = new_tab("Guild")
 ChatFrame5Tab = new_tab("Whisper")
 
+for index = 6, 10 do
+    _G["ChatFrame" .. tostring(index)] = { index = index, channelList = {} }
+    _G["ChatFrame" .. tostring(index) .. "Tab"] = new_tab("Chat " .. tostring(index))
+end
+
+FCF_GetNumActiveChatFrames = function() return 5 end
+
 local windowNames = {
     [2] = "Combat Log"
 }
@@ -131,6 +138,7 @@ local core = {
 
 local windows = captured:DiscoverWindows(core)
 assert(table.getn(windows) == 5, "docked chat tabs were not discovered")
+assert(captured:GetWindowLimit() == 5, "inactive placeholder chat windows were not excluded")
 assert(windows[1].label == "General (window 1)", "General tab label was not used")
 assert(windows[2].label == "Log (window 2)", "visible Log tab label did not override the API name")
 assert(windows[3].label == "Loot / Trade (window 3)", "right-side chat tab was not discovered")

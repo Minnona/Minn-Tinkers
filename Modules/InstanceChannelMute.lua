@@ -62,6 +62,15 @@ function module:GetChatFrame(index)
     return _G["ChatFrame" .. tostring(index)]
 end
 
+function module:GetWindowLimit()
+    if FCF_GetNumActiveChatFrames then
+        local ok, count = pcall(FCF_GetNumActiveChatFrames)
+        count = ok and tonumber(count) or nil
+        if count and count > 0 then return math.min(count, MAX_CHAT_WINDOWS) end
+    end
+    return MAX_CHAT_WINDOWS
+end
+
 function module:GetWindowName(index)
     local name = ""
     local tab = _G["ChatFrame" .. tostring(index) .. "Tab"]
@@ -108,7 +117,7 @@ function module:DiscoverWindows(core)
     local db = self:GetDB(core) or self.defaults
     local windows = {}
 
-    for index = 1, MAX_CHAT_WINDOWS do
+    for index = 1, self:GetWindowLimit() do
         local frame = self:GetChatFrame(index)
         local name = self:GetWindowName(index)
         if frame and (name ~= "" or db.selectedFrames[tostring(index)]) then
@@ -142,7 +151,7 @@ function module:DiscoverChannels(core)
         end
     end
 
-    for index = 1, MAX_CHAT_WINDOWS do
+    for index = 1, self:GetWindowLimit() do
         for key, name in pairs(self:GetWindowChannelMap(index)) do
             found[key] = name
         end
@@ -302,7 +311,7 @@ function module:BuildOptions(core, panel, y)
     )
     y = y - 38
 
-    core:CreateText(panel, "Chat windows", 42, y, 520, "GameFontNormal")
+    core:CreateText(panel, "Mute channels in these chat windows", 42, y, 520, "GameFontNormal")
     y = y - 26
 
     self.windowControls = {}
@@ -334,7 +343,7 @@ function module:BuildOptions(core, panel, y)
     end
 
     y = y - 8
-    core:CreateText(panel, "Numbered channels", 42, y, 520, "GameFontNormal")
+    core:CreateText(panel, "Channels to mute", 42, y, 520, "GameFontNormal")
     y = y - 26
 
     self.channelControls = {}
@@ -362,7 +371,7 @@ function module:BuildOptions(core, panel, y)
     end
 
     if table.getn(channels) == 0 then
-        core:CreateText(panel, "No numbered channels were found. Join or display a channel, then /reload.", 42, y, 520, "GameFontDisableSmall")
+        core:CreateText(panel, "No channels to mute were found. Join or display a channel, then /reload.", 42, y, 520, "GameFontDisableSmall")
         y = y - 26
     end
 

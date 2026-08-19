@@ -3,7 +3,7 @@ Minn Tinkers
 
 Personal WoW 3.3.5a quality-of-life addon.
 
-Version: 0.1.44
+Version: 0.1.45
 License: GPL-3.0
 
 Install:
@@ -88,6 +88,10 @@ Most other controls are handled through the settings UI.
 Advanced/dev actions are under /minn debug.
 
 Changelog:
+
+0.1.45
+- Renamed the Chat page sections to "Mute channels in these chat windows" and "Channels to mute".
+- Hidden inactive placeholder chat windows from the selection list.
 
 0.1.44
 - Chat suppression now discovers every configured chat tab from its visible tab label, including docked ElvUI tabs.
