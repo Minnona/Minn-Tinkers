@@ -1,0 +1,80 @@
+name: Publish Addon Release
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - MinnTinkers.toc
+
+permissions:
+  contents: write
+
+concurrency:
+  group: addon-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Read addon version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(awk -F': ' '/^## Version:/ {gsub(/\r/, "", $2); print $2; exit}' MinnTinkers.toc)"
+          if [[ -z "$version" ]]; then
+            echo "::error::Could not read ## Version from MinnTinkers.toc"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+      - name: Check whether release already exists
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if gh release view "${{ steps.version.outputs.tag }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build addon ZIP
+        if: steps.existing.outputs.exists != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf release MinnTinkers.zip
+          mkdir -p release/MinnTinkers
+
+          find . -maxdepth 1 -type f \( -name '*.lua' -o -name '*.toc' \) \
+            -exec cp {} release/MinnTinkers/ \;
+          cp -R Modules release/MinnTinkers/
+          cp LICENSE README.txt release/MinnTinkers/
+
+          cd release
+          zip -qr ../MinnTinkers.zip MinnTinkers
+          cd ..
+          unzip -l MinnTinkers.zip
+
+      - name: Publish GitHub release
+        if: steps.existing.outputs.exists != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release create "${{ steps.version.outputs.tag }}" \
+            "MinnTinkers.zip#MinnTinkers.zip" \
+            --target "$GITHUB_SHA" \
+            --title "Minn Tinkers v${{ steps.version.outputs.version }}" \
+            --generate-notes \
+            --latest

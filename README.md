@@ -1,46 +1,96 @@
 # Minn Tinkers
 
-Personal utility addon for World of Warcraft 3.3.5a / Ascension.
+Minn Tinkers is a collection of lightweight quality-of-life tools for World of Warcraft 3.3.5a on Project Ascension.
+
+## Download
+
+[**Download the latest MinnTinkers.zip**](https://github.com/Minnona/Minn-Tinkers/releases/latest/download/MinnTinkers.zip)
+
+The release archive contains the correctly named `MinnTinkers` addon folder.
 
 ## Features
 
-- Frog minimap button for reopening the last-used settings tab
-- Auto-sell grey items
-- Auto-skip safe single-option gossip
-- Auto-mark tank and healer roles, with same-dungeon memory through Mythic+ activation
-- Felsworn tools
-- Venomancer tools
-- Buff reminder buttons
-- Per-character settings
-- Native Interface > AddOns settings pages
-- Per-window numbered-channel suppression in dungeons, raids, and battlegrounds
-- Smart dungeon rolls, including a Zul'Gurub green/blue Need override
-- Raid Roll Helper in its own Raid Rolls settings tab
-- Raid Roll Helper supports trusted raid leader/master-looter item announcements
-- Raid Roll Helper supports flexible safe starts like `roll [item] MS`, `roll 1-100 [item]`, and `[item] x2 roll MS`
-- Compact account-wide raid and world-boss lockout tables with Ascension boss-timer recovery and click-to-reset saved IDs for the logged-in character
-- Configurable PvP flag-carrier names beside the matching Blizzard flag icons, click targeting, automatic Square/Skull marking, and battleground auto-release
-- Wardrobe Auto-Accept for appearance collection confirmations
-- Battleground Spoils Auto-Select for single stat-choice reward windows
-- Popup Guard to stop Escape from accidentally cancelling protected invites, summons, resurrection, and queue popups
+Open the settings with `/minn` or through **Interface → AddOns → Minn Tinkers**.
+
+### Universal
+
+- Smart dungeon rolls, including the Zul'Gurub green/blue Need override
+- Automatic Star/Moon role markers with Mythic+ transition recovery
+- Auto-sell grey items and skip safe single-option gossip
+- Safe wardrobe and Battleground Spoils confirmation helpers
+- Popup protection for invites, summons, resurrection and queue prompts
+
+### Chat
+
+- Mute selected global channels in chosen chat windows inside dungeons, raids or battlegrounds
+- Restore every muted channel to its original window after leaving
+
+### Raid Rolls
+
+- Run timed MS/OS item rolls with single- and multi-copy winner support
+- Accept safe item announcements from yourself, the raid leader or the master looter
+
+### Raid Lockouts
+
+- Track raid and world-boss lockouts across characters on the current realm
+- Show difficulty and reset timers in a compact account-wide table
+- Click the logged-in character's name to reset an available saved ID
+
+### PvP
+
+- Show clickable friendly and enemy flag-carrier names beside Blizzard's flag UI
+- Automatically mark friendly and enemy carriers and release in battlegrounds
+
+### Felsworn
+
+- Vengeful Pact and Man'ari Intuition reminder tools
+
+### Venomancer
+
+- Envenomed Weapons reminder tool
+
+## Installation
+
+### Windows
+
+1. Download `MinnTinkers.zip` from the [Releases section](https://github.com/Minnona/Minn-Tinkers/releases).
+2. Extract it into:
+
+```text
+C:\AscensionWoW\resources\ascension-live\Interface\AddOns\
+```
+
+The final folder should be:
+
+```text
+C:\AscensionWoW\resources\ascension-live\Interface\AddOns\MinnTinkers\
+```
+
+### Linux
+
+1. Download `MinnTinkers.zip` from the [Releases section](https://github.com/Minnona/Minn-Tinkers/releases).
+2. Extract it into:
+
+```text
+~/AscensionWoW/resources/ascension-live/Interface/AddOns/
+```
+
+The final folder should be:
+
+```text
+~/AscensionWoW/resources/ascension-live/Interface/AddOns/MinnTinkers/
+```
+
+Use the location of your own AscensionWoW folder if it is installed elsewhere.
 
 ## Commands
 
-Main command:
-
-- `/minn` - open settings
-
-Raid Roll Helper:
-
-- `/minn roll [item]`
-- `/minn roll 3 [item]`
-- `/minn roll status`
-- `/minn roll log`
-- `/minn roll cancel`
-- `/minn roll ml`
-
-Most other addon controls are handled through the settings UI.
+- `/minn` — open settings
+- `/minn roll [item]` — start a one-copy item roll
+- `/minn roll 3 [item]` — start a multi-copy item roll
+- `/minn roll status` — show the active roll
+- `/minn roll cancel` — cancel the active roll
 
 ## License
 
-GPL-3.0
+Minn Tinkers is licensed under GPL-3.0. Anyone may use, study, modify and redistribute it under the same license.

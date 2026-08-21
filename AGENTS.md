@@ -429,6 +429,8 @@ Current expected version after latest handoff:
 
 When changing files, bump TOC version only when it is a real user-facing patch. Keep README/README.txt in sync if doing a release-style update.
 
+`.github/workflows/release.yml` publishes `MinnTinkers.zip` when manually dispatched or when `MinnTinkers.toc` changes on `main`. The archive must contain one top-level `MinnTinkers/` folder so extracting it never creates a `Minn-Tinkers-main/` addon directory.
+
 ## Pre-change checks
 
 Before editing:
