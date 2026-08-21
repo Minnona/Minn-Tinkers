@@ -3,7 +3,7 @@ Minn Tinkers
 
 Personal WoW 3.3.5a quality-of-life addon.
 
-Version: 0.1.51
+Version: 0.1.52
 License: GPL-3.0
 
 Install:
@@ -91,6 +91,11 @@ Most other controls are handled through the settings UI.
 Advanced/dev actions are under /minn debug.
 
 Changelog:
+
+0.1.52
+- Prevented Raid Lockouts from calling Ascension's native bind API during ADDON_LOADED.
+- Lockout collection now starts after PLAYER_ENTERING_WORLD and rejects every earlier refresh path.
+- Thanks to Zalmoxix for reporting the login crash.
 
 0.1.51
 - Refreshes Blizzard's saved-instance cache before rebuilding the table after an Ascension lockout is reset.

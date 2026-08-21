@@ -568,6 +568,11 @@ function module:SnapshotCurrentCharacter(core, currentTime)
 end
 
 function module:RequestSnapshot(core, force)
+    if not self.worldReady then
+        self:RefreshTable(core)
+        return false
+    end
+
     local api = C_LootLockout
     local canRequestStandard = type(RequestRaidInfo) == "function"
     local canRequestAscension = type(api) == "table"
@@ -947,13 +952,15 @@ function module:OnEvent(core, event, ...)
         local success = first
         if type(second) == "boolean" then success = second end
         if success ~= false then self:RequestStandardRefreshAfterBind(core) end
-    elseif event == "PLAYER_LOGIN" or event == "PLAYER_ENTERING_WORLD" or event == "RAID_INSTANCE_WELCOME" then
+    elseif event == "PLAYER_ENTERING_WORLD" then
+        self.worldReady = true
+        self:RequestSnapshot(core, false)
+    elseif event == "RAID_INSTANCE_WELCOME" then
         self:RequestSnapshot(core, false)
     end
 end
 
 local EVENTS = {
-    "PLAYER_LOGIN",
     "PLAYER_ENTERING_WORLD",
     "RAID_INSTANCE_WELCOME",
     "UPDATE_INSTANCE_INFO",
@@ -962,16 +969,17 @@ local EVENTS = {
 
 function module:OnEnable(core)
     self:GetStore(core)
+    self.worldReady = false
     if not self.frame then
         self.frame = CreateFrame("Frame")
         self.frame:SetScript("OnEvent", function(_, event, ...) module:OnEvent(core, event, ...) end)
     end
     for _, event in ipairs(EVENTS) do safe_register(self.frame, event) end
-    self:RequestSnapshot(core, false)
 end
 
 function module:OnDisable(core)
     self.scanPending = false
+    self.worldReady = false
     if self.frame then
         for _, event in ipairs(EVENTS) do safe_unregister(self.frame, event) end
     end

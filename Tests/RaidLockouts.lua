@@ -237,6 +237,21 @@ assert(snowgraveCount == 1, "custom lockout duplicated an existing standard lock
 local standardRequestCount = 0
 RequestRaidInfo = function() standardRequestCount = standardRequestCount + 1 end
 captured.lastRequestAt = nil
+captured.worldReady = false
+assert(not captured:RequestSnapshot(core, true), "pre-world lockout refresh request was not blocked")
+assert(standardRequestCount == 0, "pre-world standard raid information was requested")
+assert(queryCount == 0, "pre-world Ascension instance binds were requested")
+captured:OnEvent(core, "PLAYER_LOGIN")
+assert(not captured.worldReady, "PLAYER_LOGIN marked the lockout API as world-ready")
+assert(standardRequestCount == 0 and queryCount == 0, "PLAYER_LOGIN requested lockout information")
+captured:OnEvent(core, "PLAYER_ENTERING_WORLD")
+assert(captured.worldReady, "PLAYER_ENTERING_WORLD did not mark the lockout API as world-ready")
+assert(standardRequestCount == 1, "world entry did not request standard raid information")
+assert(queryCount == 1, "world entry did not request Ascension instance binds")
+
+standardRequestCount = 0
+queryCount = 0
+captured.lastRequestAt = nil
 assert(captured:RequestSnapshot(core, true), "combined lockout refresh request failed")
 assert(standardRequestCount == 1, "standard raid information was not requested")
 assert(queryCount == 1, "Ascension instance binds were not requested")
