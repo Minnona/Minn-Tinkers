@@ -96,6 +96,10 @@ local function content_key(name)
     return string.gsub(value, "[^%w]", "")
 end
 
+local function content_difficulty_key(name, difficulty)
+    return content_key(name) .. "\031" .. lower(trim(difficulty))
+end
+
 local function display_content_name(name)
     local value = trim(name)
     value = string.gsub(value, "%s*%([Pp][Vv][Ee]%)%s*$", "")
@@ -272,6 +276,81 @@ function module:GetCurrentCharacter()
         classToken = classToken,
         faction = UnitFactionGroup and UnitFactionGroup("player") or nil
     }
+end
+
+function module:IsCurrentCharacter(character, current)
+    if type(character) ~= "table" or type(current) ~= "table" then return false end
+    local characterGUID = trim(character.guid)
+    local currentGUID = trim(current.guid)
+    if characterGUID ~= "" and currentGUID ~= "" then return characterGUID == currentGUID end
+    return lower(trim(character.name)) == lower(trim(current.name))
+        and lower(trim(character.realm)) == lower(trim(current.realm))
+end
+
+function module:GetResetTargets()
+    local targets = {}
+    local api = C_Instance
+    if type(api) ~= "table" or type(api.GetSavedMapAndDifficulty) ~= "function" then return targets end
+
+    local ok, locks = pcall(api.GetSavedMapAndDifficulty, api)
+    if not ok or type(locks) ~= "table" then return targets end
+
+    for _, lockout in ipairs(locks) do
+        local mapID = type(lockout) == "table" and tonumber(lockout.mapID) or nil
+        local difficultyID = type(lockout) == "table" and tonumber(lockout.difficultyID) or nil
+        local name = nil
+        if mapID and type(GetMapName) == "function" then
+            local nameOK, mapName = pcall(GetMapName, mapID)
+            if nameOK then name = trim(mapName) end
+        end
+        if mapID and difficultyID and name and name ~= "" then
+            local difficulty = self:NormalizeLootDifficulty(difficultyID)
+            targets[content_difficulty_key(name, difficulty)] = {
+                mapID = mapID,
+                difficultyID = difficultyID,
+                mapName = name,
+                difficultyKey = difficulty
+            }
+        end
+    end
+
+    return targets
+end
+
+function module:CanResetSpecificInstance()
+    if type(IsInInstance) == "function" then
+        local ok, inInstance = pcall(IsInInstance)
+        if ok and inInstance then return false, "Leave the instance before resetting a saved ID." end
+    end
+
+    local groupSize = 0
+    if type(GetNumPartyMembers) == "function" then groupSize = groupSize + (tonumber(GetNumPartyMembers()) or 0) end
+    if type(GetNumRaidMembers) == "function" then groupSize = groupSize + (tonumber(GetNumRaidMembers()) or 0) end
+    if groupSize > 0 and type(IsPartyLeader) == "function" and not IsPartyLeader() then
+        return false, "Only the group leader can reset a saved ID."
+    end
+    if type(HasLFGRestrictions) == "function" and HasLFGRestrictions() then
+        return false, "Saved IDs cannot be reset while group-finder restrictions are active."
+    end
+    return true
+end
+
+function module:ShowResetConfirmation(core, target)
+    local mapID = type(target) == "table" and tonumber(target.mapID) or nil
+    local difficultyID = type(target) == "table" and tonumber(target.difficultyID) or nil
+    if not mapID or not difficultyID or type(StaticPopup_Show) ~= "function" then return false end
+
+    local allowed, reason = self:CanResetSpecificInstance()
+    if not allowed then
+        if core and core.Print then core:Print(reason) end
+        return false
+    end
+
+    local mapName = trim(target.mapName)
+    if mapName == "" then mapName = tostring(mapID) end
+    local difficultyName = _G["GENERIC_DIFFICULTY" .. tostring(difficultyID)] or target.difficultyKey or tostring(difficultyID)
+    local ok = pcall(StaticPopup_Show, "COMFIRM_RESET_SPECIFIC_INSTANCE", mapName, difficultyName, { mapID, difficultyID })
+    return ok
 end
 
 function module:PruneStore(core, currentTime)
@@ -532,11 +611,14 @@ function module:BuildTableModel(core, currentTime)
         worldBosses = build_model_rows(worldBossCatalog, WORLD_BOSS_DIFFICULTIES, "worldBoss")
     }
     local rowsByKey = {}
+    local currentCharacter = self:GetCurrentCharacter()
+    local resetTargets = self:GetResetTargets()
 
     for _, row in ipairs(model.raids) do rowsByKey[row.key] = row end
     for _, row in ipairs(model.worldBosses) do rowsByKey[row.key] = row end
 
     for _, character in ipairs(self:GetVisibleCharacters(core, currentTime, true)) do
+        local isCurrentCharacter = self:IsCurrentCharacter(character, currentCharacter)
         for _, lockout in ipairs(character.lockouts or {}) do
             local row = rowsByKey[content_key(lockout.name)]
             local difficulty = trim(lockout.difficultyKey)
@@ -547,8 +629,17 @@ function module:BuildTableModel(core, currentTime)
                 local name = tostring(character.name or "Unknown")
                 local nameKey = lower(name)
                 local existing = cell.byName[nameKey]
+                local resetTarget = isCurrentCharacter and resetTargets[content_difficulty_key(lockout.name, difficulty)] or nil
                 if not existing or (existing.resettable and not resettable) then
-                    cell.byName[nameKey] = { name = name, resettable = resettable }
+                    cell.byName[nameKey] = {
+                        name = name,
+                        resettable = resettable,
+                        isCurrentCharacter = isCurrentCharacter,
+                        resetTarget = resetTarget
+                    }
+                elseif resetTarget and not existing.resetTarget then
+                    existing.resetTarget = resetTarget
+                    existing.isCurrentCharacter = true
                 end
 
                 if resetKnown and remaining > 0 then
@@ -658,19 +749,93 @@ function module:EnsureRowControls(panel, section, row)
     controls.label:SetJustifyV("TOP")
 
     for index, difficulty in ipairs(section.difficulties) do
-        local label = controls.frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-        label:SetPoint("TOPLEFT", controls.frame, "TOPLEFT", TABLE_LABEL_WIDTH + ((index - 1) * section.cellWidth) + 6, -5)
-        label:SetWidth(section.cellWidth - 12)
-        label:SetJustifyH("LEFT")
-        label:SetJustifyV("TOP")
-        controls.cells[difficulty] = label
+        local cell = {
+            x = TABLE_LABEL_WIDTH + ((index - 1) * section.cellWidth) + 6,
+            width = section.cellWidth - 12,
+            buttons = {}
+        }
+        cell.placeholder = controls.frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+        cell.placeholder:SetPoint("TOPLEFT", controls.frame, "TOPLEFT", cell.x, -5)
+        cell.placeholder:SetWidth(cell.width)
+        cell.placeholder:SetJustifyH("LEFT")
+        cell.placeholder:SetJustifyV("TOP")
+        cell.placeholder:SetText("|cff555555-|r")
+        controls.cells[difficulty] = cell
     end
 
     section.rows[row.key] = controls
     return controls
 end
 
-function module:RefreshTableSection(panel, section, rows, currentTime, y)
+function module:EnsureCellButton(rowControls, cellControls, index)
+    local button = cellControls.buttons[index]
+    if button then return button end
+
+    button = CreateFrame("Button", nil, rowControls.frame)
+    button:SetWidth(cellControls.width)
+    button:SetHeight(TABLE_LINE_HEIGHT)
+    if button.RegisterForClicks then button:RegisterForClicks("LeftButtonUp") end
+    button.text = button:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    button.text:SetAllPoints(button)
+    button.text:SetJustifyH("LEFT")
+    button.text:SetJustifyV("MIDDLE")
+    button.highlight = button:CreateTexture(nil, "HIGHLIGHT")
+    button.highlight:SetAllPoints(button)
+    button.highlight:SetTexture(1, 1, 1, 0.09)
+
+    button:SetScript("OnClick", function(self)
+        if self.resetTarget then module:ShowResetConfirmation(self.core, self.resetTarget) end
+    end)
+    button:SetScript("OnEnter", function(self)
+        if not GameTooltip then return end
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        if self.resetTarget then
+            GameTooltip:SetText("Reset " .. tostring(self.resetTarget.mapName or self.rowLabel), 1, 1, 1)
+            GameTooltip:AddLine("Click to open Ascension's saved-ID reset confirmation.", nil, nil, nil, true)
+        elseif not self.isCurrentCharacter then
+            GameTooltip:SetText(tostring(self.entryName or "Saved character"), 1, 1, 1)
+            GameTooltip:AddLine("Log into this character to reset its saved ID.", nil, nil, nil, true)
+        else
+            GameTooltip:SetText(tostring(self.entryName or "Saved ID"), 1, 1, 1)
+            GameTooltip:AddLine("This saved ID is not currently available in Ascension's reset list.", nil, nil, nil, true)
+        end
+        GameTooltip:Show()
+    end)
+    button:SetScript("OnLeave", function()
+        if GameTooltip then GameTooltip:Hide() end
+    end)
+
+    cellControls.buttons[index] = button
+    return button
+end
+
+function module:RefreshCellControls(core, rowControls, cellControls, entries, difficulty, row)
+    entries = entries or {}
+    if table.getn(entries) == 0 then cellControls.placeholder:Show()
+    else cellControls.placeholder:Hide() end
+
+    local visible = 0
+    for index, entry in ipairs(entries) do
+        local button = self:EnsureCellButton(rowControls, cellControls, index)
+        button:ClearAllPoints()
+        button:SetPoint("TOPLEFT", rowControls.frame, "TOPLEFT", cellControls.x, -5 - ((index - 1) * TABLE_LINE_HEIGHT))
+        button.text:SetText(self:FormatCellText({ entry }, difficulty))
+        button.core = core
+        button.entryName = entry.name
+        button.isCurrentCharacter = entry.isCurrentCharacter
+        button.resetTarget = entry.resetTarget
+        button.rowLabel = row.label
+        button.highlight:SetAlpha(entry.resetTarget and 1 or 0)
+        button:Show()
+        visible = index
+    end
+
+    for index = visible + 1, table.getn(cellControls.buttons) do
+        cellControls.buttons[index]:Hide()
+    end
+end
+
+function module:RefreshTableSection(core, panel, section, rows, currentTime, y)
     section.header:ClearAllPoints()
     section.header:SetPoint("TOPLEFT", panel, "TOPLEFT", 12, y)
     section.header:Show()
@@ -693,8 +858,8 @@ function module:RefreshTableSection(panel, section, rows, currentTime, y)
         controls.label:SetHeight(rowHeight - 8)
         controls.label:SetText(self:FormatRowLabel(row, currentTime))
         for _, difficulty in ipairs(section.difficulties) do
-            controls.cells[difficulty]:SetHeight(rowHeight - 8)
-            controls.cells[difficulty]:SetText(self:FormatCellText(row.cells[difficulty].entries, difficulty))
+            controls.cells[difficulty].placeholder:SetHeight(rowHeight - 8)
+            self:RefreshCellControls(core, controls, controls.cells[difficulty], row.cells[difficulty].entries, difficulty, row)
         end
         controls.frame:Show()
         y = y - rowHeight
@@ -714,13 +879,13 @@ function module:RefreshTable(core)
     local worldBossSection = self:CreateSectionControls(self.settingsPage, "worldBosses", "World Bosses", WORLD_BOSS_DIFFICULTIES)
     local y = self.tableTopY
 
-    y = self:RefreshTableSection(self.settingsPage, raidSection, model.raids, currentTime, y)
-    y = self:RefreshTableSection(self.settingsPage, worldBossSection, model.worldBosses, currentTime, y)
+    y = self:RefreshTableSection(core, self.settingsPage, raidSection, model.raids, currentTime, y)
+    y = self:RefreshTableSection(core, self.settingsPage, worldBossSection, model.worldBosses, currentTime, y)
 
     if self.legendLabel then
         self.legendLabel:ClearAllPoints()
         self.legendLabel:SetPoint("TOPLEFT", self.settingsPage, "TOPLEFT", 12, y)
-        self.legendLabel:SetText("|cff777777Grey names have an expired lockout available for manual reset.|r")
+        self.legendLabel:SetText("Click your character's name to reset that saved ID. |cff777777Grey = expired/resettable.|r")
         y = y - 24
     end
     self.settingsPage:SetHeight(math.max(520, math.abs(y) + 28))

@@ -3,7 +3,7 @@ Minn Tinkers
 
 Personal WoW 3.3.5a quality-of-life addon.
 
-Version: 0.1.47
+Version: 0.1.48
 License: GPL-3.0
 
 Install:
@@ -56,6 +56,7 @@ Raid Lockouts:
 - Shows current-realm characters in compact raid and world-boss tables with difficulty columns.
 - Character names are colored by difficulty and stacked vertically inside each cell.
 - Expired binds that Ascension allows you to reset manually remain visible as grey character names.
+- Click the logged-in character's name to open Ascension's confirmation for resetting that specific saved ID.
 - Common server reset durations appear once beside the raid or world-boss name.
 - Ascension standalone world-boss loot locks are merged with standard raid saves when the normal API omits them.
 
@@ -89,6 +90,11 @@ Most other controls are handled through the settings UI.
 Advanced/dev actions are under /minn debug.
 
 Changelog:
+
+0.1.48
+- Made the logged-in character's raid and world-boss table names clickable.
+- Clicking a saved ID uses Ascension's native per-map/per-difficulty reset confirmation and refreshes through the existing bind event.
+- Offline character names remain informational because one character cannot reset another character's saved IDs.
 
 0.1.47
 - Replaced the Raid Lockouts text report with compact raid and world-boss difficulty tables.

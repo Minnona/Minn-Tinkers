@@ -38,10 +38,12 @@ local unknownResetAt, unknownResetKnown = captured:ResolveResetAt(100000, 0)
 assert(not unknownResetKnown and unknownResetAt == 0, "zero Ascension reset duration was treated as expired")
 
 local settings = { enabled = true }
+local printed = {}
 local core = {
     globalDB = {},
     optionControls = {},
-    GetModuleDB = function() return settings end
+    GetModuleDB = function() return settings end,
+    Print = function(_, message) table.insert(printed, message) end
 }
 
 UnitName = function() return "Testchar" end
@@ -49,6 +51,34 @@ GetRealmName = function() return "Bronzebeard" end
 UnitGUID = function() return "Player-1-ABC" end
 UnitClass = function() return "Mage", "MAGE" end
 UnitFactionGroup = function() return "Alliance" end
+IsInInstance = function() return false, "none" end
+GetNumPartyMembers = function() return 0 end
+GetNumRaidMembers = function() return 0 end
+IsPartyLeader = function() return true end
+HasLFGRestrictions = function() return false end
+
+local mapNames = {
+    [249] = "Zul'Gurub",
+    [409] = "Molten Core",
+    [777] = "Snowgrave (PvE)",
+    [891] = "Kaldros Depthbreaker (PvE)"
+}
+GetMapName = function(mapID) return mapNames[mapID] end
+C_Instance = {
+    GetSavedMapAndDifficulty = function()
+        return {
+            { mapID = 249, difficultyID = 3 },
+            { mapID = 409, difficultyID = 1 },
+            { mapID = 409, difficultyID = 4 },
+            { mapID = 777, difficultyID = 1 },
+            { mapID = 891, difficultyID = 2 }
+        }
+    end
+}
+_G.GENERIC_DIFFICULTY1 = "Normal"
+_G.GENERIC_DIFFICULTY2 = "Heroic"
+_G.GENERIC_DIFFICULTY3 = "Mythic"
+_G.GENERIC_DIFFICULTY4 = "Ascended"
 
 local saved = {
     { "Molten Core", 101, 7200, 3, true, false, 1, true, 40, "Normal Raid" },
@@ -101,6 +131,37 @@ assert(find_row(model.worldBosses, "ysondre"), "seeded world boss catalog was in
 assert(captured:FormatCellText({}, "Normal") == "|cff555555-|r", "empty table cell did not use a dash")
 assert(string.find(captured:FormatCellText(moltenCore.cells.Normal.entries, "Normal"), "|cff66ff66Testchar|r", 1, true), "active Normal character was not difficulty-colored")
 assert(string.find(captured:FormatCellText(snowgraveRow.cells.Normal.entries, "Normal"), "|cff777777Testchar|r", 1, true), "resettable character was not grey")
+local moltenCoreNormalEntry = find_entry(moltenCore.cells.Normal.entries, "Testchar")
+assert(moltenCoreNormalEntry.isCurrentCharacter, "current character table entry was not identified")
+assert(moltenCoreNormalEntry.resetTarget and moltenCoreNormalEntry.resetTarget.mapID == 409 and moltenCoreNormalEntry.resetTarget.difficultyID == 1, "current saved ID was not resolved to Ascension's reset target")
+
+local shownPopup
+StaticPopup_Show = function(which, text1, text2, data)
+    shownPopup = { which = which, text1 = text1, text2 = text2, data = data }
+    return {}
+end
+assert(captured:ShowResetConfirmation(core, moltenCoreNormalEntry.resetTarget), "saved-ID reset confirmation was not opened")
+assert(shownPopup.which == "COMFIRM_RESET_SPECIFIC_INSTANCE", "wrong Ascension reset confirmation was opened")
+assert(shownPopup.text1 == "Molten Core" and shownPopup.text2 == "Normal", "reset confirmation labels were incorrect")
+assert(shownPopup.data[1] == 409 and shownPopup.data[2] == 1, "reset confirmation received the wrong map or difficulty")
+
+IsInInstance = function() return true, "raid" end
+shownPopup = nil
+assert(not captured:ShowResetConfirmation(core, moltenCoreNormalEntry.resetTarget), "saved ID could be reset from inside an instance")
+assert(not shownPopup and printed[table.getn(printed)] == "Leave the instance before resetting a saved ID.", "inside-instance reset did not fail safely")
+IsInInstance = function() return false, "none" end
+
+GetNumPartyMembers = function() return 1 end
+IsPartyLeader = function() return false end
+assert(not captured:ShowResetConfirmation(core, moltenCoreNormalEntry.resetTarget), "non-leader could open a saved-ID reset confirmation")
+assert(printed[table.getn(printed)] == "Only the group leader can reset a saved ID.", "non-leader reset did not fail safely")
+GetNumPartyMembers = function() return 0 end
+IsPartyLeader = function() return true end
+
+HasLFGRestrictions = function() return true end
+assert(not captured:ShowResetConfirmation(core, moltenCoreNormalEntry.resetTarget), "LFG-restricted player could open a saved-ID reset confirmation")
+assert(printed[table.getn(printed)] == "Saved IDs cannot be reset while group-finder restrictions are active.", "LFG-restricted reset did not fail safely")
+HasLFGRestrictions = function() return false end
 
 local snowgrave
 for _, lockout in ipairs(character.lockouts) do
@@ -176,7 +237,9 @@ assert(eventKaldros, "successful Ascension bind query did not refresh the charac
 model = captured:BuildTableModel(core, currentTime)
 local kaldrosRow = find_row(model.worldBosses, "kaldros")
 assert(kaldrosRow and kaldrosRow.label == "Kaldros", "Kaldros was not normalized to its compact table label")
-assert(find_entry(kaldrosRow.cells.Heroic.entries, "Testchar"), "Kaldros was not placed in the Heroic world-boss column")
+local kaldrosEntry = find_entry(kaldrosRow.cells.Heroic.entries, "Testchar")
+assert(kaldrosEntry, "Kaldros was not placed in the Heroic world-boss column")
+assert(kaldrosEntry.resetTarget and kaldrosEntry.resetTarget.mapID == 891 and kaldrosEntry.resetTarget.difficultyID == 2, "Kaldros was not linked to its Heroic reset target")
 assert(kaldrosRow.resetAt == currentTime + 438663, "world-boss reset was not moved to its row")
 
 store.characters.other = {
@@ -214,6 +277,7 @@ model = captured:BuildTableModel(core, currentTime)
 moltenCore = find_row(model.raids, "moltencore")
 assert(not find_entry(moltenCore.cells.Normal.entries, "Otherchar"), "current-realm table included another realm")
 assert(table.getn(moltenCore.cells.Normal.entries) == 2, "current-realm characters were not collected into one cell")
+assert(not find_entry(moltenCore.cells.Normal.entries, "Secondchar").resetTarget, "offline character was given a live reset target")
 local stackedNames = captured:FormatCellText(moltenCore.cells.Normal.entries, "Normal")
 assert(string.find(stackedNames, "Secondchar|r\n|cff66ff66Testchar", 1, true), "character names were not stacked vertically in alphabetical order")
 
