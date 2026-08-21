@@ -30,11 +30,15 @@ Open the settings with `/minn` or through **Interface → AddOns → Minn Tinker
 - Run timed MS/OS item rolls with single- and multi-copy winner support
 - Link an item without additional text in Raid Warning to start a roll
 
+![Raid Rolls settings](docs/images/raid-rolls.png)
+
 ### Raid Lockouts
 
 - Track raid and world-boss lockouts across characters on the current realm
 - Show difficulty and reset timers in a compact account-wide table
 - Click the logged-in character's name to reset an available saved ID
+
+![Raid Lockouts table](docs/images/raid-lockouts.png)
 
 ### PvP
 
