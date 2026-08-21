@@ -28,7 +28,7 @@ Open the settings with `/minn` or through **Interface → AddOns → Minn Tinker
 ### Raid Rolls
 
 - Run timed MS/OS item rolls with single- and multi-copy winner support
-- Accept safe item announcements from yourself, the raid leader or the master looter
+- Link an item without additional text in Raid Warning to start a roll
 
 ### Raid Lockouts
 
@@ -82,14 +82,6 @@ The final folder should be:
 ```
 
 Use the location of your own AscensionWoW folder if it is installed elsewhere.
-
-## Commands
-
-- `/minn` — open settings
-- `/minn roll [item]` — start a one-copy item roll
-- `/minn roll 3 [item]` — start a multi-copy item roll
-- `/minn roll status` — show the active roll
-- `/minn roll cancel` — cancel the active roll
 
 ## License
 
