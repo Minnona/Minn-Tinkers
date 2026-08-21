@@ -82,8 +82,9 @@ _G.GENERIC_DIFFICULTY4 = "Ascended"
 
 local saved = {
     { "Molten Core", 101, 7200, 3, true, false, 1, true, 40, "Normal Raid" },
+    { "Molten Core", 107, 0, 4, true, false, 1, true, 40, "Heroic (10-25 Players)" },
     { "Blackwing Lair", 102, 9000, 4, false, false, 1, true, 40, "Heroic Raid" },
-    { "Zul'Gurub", 103, 10800, 5, true, false, 1, true, 20, "Mythic Raid" },
+    { "Zul'Gurub", 103, 0, 5, true, false, 1, true, 20, "Mythic Raid" },
     { "The Deadmines", 104, 12000, 5, true, false, 1, false, 5, "Mythic" },
     { "Molten Core", 105, 7200, 6, false, true, 1, true, 40, "Ascended Raid" },
     { "Snowgrave (PvE)", 106, 0, 1, true, false, 0, true, 40, "Normal (10-25 Players)" }
@@ -100,7 +101,7 @@ local store = core.globalDB.raidLockouts
 local character
 for _, value in pairs(store.characters) do character = value end
 assert(character and character.name == "Testchar", "current character identity was not stored")
-assert(table.getn(character.lockouts) == 4, "snapshot did not keep exactly the locked raid instances: " .. tostring(table.getn(character.lockouts)))
+assert(table.getn(character.lockouts) == 5, "snapshot did not keep exactly the locked raid instances: " .. tostring(table.getn(character.lockouts)))
 
 local function find_row(rows, key)
     for _, row in ipairs(rows or {}) do
@@ -120,8 +121,10 @@ local zulGurub = find_row(model.raids, "zulgurub")
 local snowgraveRow = find_row(model.worldBosses, "snowgrave")
 assert(moltenCore, "raid table omitted Molten Core")
 assert(find_entry(moltenCore.cells.Normal.entries, "Testchar"), "Normal raid cell omitted the character")
+assert(find_entry(moltenCore.cells.Heroic.entries, "Testchar").resettable, "unknown Heroic raid reset was not shown as manually resettable")
 assert(find_entry(moltenCore.cells.Ascended.entries, "Testchar"), "Ascended raid cell omitted the character")
 assert(zulGurub and find_entry(zulGurub.cells.Mythic.entries, "Testchar"), "Mythic raid cell omitted the character")
+assert(find_entry(zulGurub.cells.Mythic.entries, "Testchar").resettable, "unknown Mythic raid reset was not shown as manually resettable")
 assert(snowgraveRow and find_entry(snowgraveRow.cells.Normal.entries, "Testchar"), "world-boss table omitted Snowgrave")
 assert(find_entry(snowgraveRow.cells.Normal.entries, "Testchar").resettable, "unknown reset was not shown as manually resettable")
 assert(moltenCore.resetAt == currentTime + 7200, "common raid reset was not moved to the raid row")
@@ -185,6 +188,7 @@ C_LootLockout = {
         return {
             [891] = { [1] = { [37001] = 438881 } },
             [409] = { [1] = { [4126] = 93281, [4127] = 93281 } },
+            [249] = { [2] = { [4149] = 80000 } },
             [777] = { [0] = { [50001] = 5000 } }
         }
     end,
@@ -196,6 +200,8 @@ C_LootLockout = {
             return "Lucifron", 409, 2, "", 1, 93281
         elseif encounterID == 4127 then
             return "Magmadar", 409, 2, "", 2, 93281
+        elseif encounterID == 4149 then
+            return "High Priestess Jeklik", 249, 3, "", 1, 80000
         elseif encounterID == 50001 then
             return "Snowgrave (PvE)", 777, 1, "", 1000, 5000
         end
@@ -203,18 +209,28 @@ C_LootLockout = {
 }
 
 local merged = captured:CollectCurrentLockouts(currentTime)
-assert(table.getn(merged) == 5, "custom lockout merge added duplicates or raid boss rows: " .. tostring(table.getn(merged)))
+assert(table.getn(merged) == 6, "custom lockout merge added duplicates or raid boss rows: " .. tostring(table.getn(merged)))
 local kaldros
 local lucifron
+local jeklik
+local moltenCoreHeroic
+local zulGurubMythic
 local snowgraveCount = 0
 for _, lockout in ipairs(merged) do
     if lockout.name == "Kaldros Depthbreaker (PvE)" then kaldros = lockout end
     if lockout.name == "Lucifron" then lucifron = lockout end
+    if lockout.name == "High Priestess Jeklik" then jeklik = lockout end
+    if lockout.name == "Molten Core" and lockout.difficultyKey == "Heroic" then moltenCoreHeroic = lockout end
+    if lockout.name == "Zul'Gurub" and lockout.difficultyKey == "Mythic" then zulGurubMythic = lockout end
     if lockout.name == "Snowgrave (PvE)" then snowgraveCount = snowgraveCount + 1 end
 end
 assert(kaldros and kaldros.difficultyKey == "Heroic", "Kaldros custom Heroic lockout was not collected")
 assert(kaldros.resetKnown and kaldros.resetAt == currentTime + 438663, "Kaldros custom reset time was not stored")
 assert(not lucifron, "multi-boss raid loot locks were exposed as boss lockout rows")
+assert(not jeklik, "partial ordinary raid loot lock was exposed as a boss lockout row")
+assert(moltenCoreHeroic and moltenCoreHeroic.resetKnown and moltenCoreHeroic.resetAt == currentTime + 93281, "Molten Core Heroic did not inherit its hidden boss reset")
+assert(moltenCoreHeroic.resetSource == "ascensionBosses", "Molten Core Heroic did not record the hidden reset source")
+assert(zulGurubMythic and zulGurubMythic.resetKnown and zulGurubMythic.resetAt == currentTime + 80000, "partial Zul'Gurub Mythic did not inherit its hidden boss reset")
 assert(snowgraveCount == 1, "custom lockout duplicated an existing standard lockout")
 
 local standardRequestCount = 0
@@ -235,7 +251,15 @@ end
 assert(eventKaldros, "successful Ascension bind query did not refresh the character snapshot")
 
 model = captured:BuildTableModel(core, currentTime)
+moltenCore = find_row(model.raids, "moltencore")
+zulGurub = find_row(model.raids, "zulgurub")
 local kaldrosRow = find_row(model.worldBosses, "kaldros")
+local eventMoltenCoreHeroic = find_entry(moltenCore.cells.Heroic.entries, "Testchar")
+local eventZulGurubMythic = find_entry(zulGurub.cells.Mythic.entries, "Testchar")
+assert(eventMoltenCoreHeroic and not eventMoltenCoreHeroic.resettable, "hidden Molten Core reset did not make Heroic active")
+assert(string.find(captured:FormatCellText(moltenCore.cells.Heroic.entries, "Heroic"), "|cff3399ffTestchar|r", 1, true), "backfilled Heroic raid character was not difficulty-colored")
+assert(eventZulGurubMythic and not eventZulGurubMythic.resettable, "hidden Zul'Gurub reset did not make Mythic active")
+assert(zulGurub.resetAt == currentTime + 80000, "partial Zul'Gurub reset was not moved to the raid row")
 assert(kaldrosRow and kaldrosRow.label == "Kaldros", "Kaldros was not normalized to its compact table label")
 local kaldrosEntry = find_entry(kaldrosRow.cells.Heroic.entries, "Testchar")
 assert(kaldrosEntry, "Kaldros was not placed in the Heroic world-boss column")

@@ -412,58 +412,85 @@ end
 
 function module:CollectAscensionLootLockouts(currentTime)
     local lockouts = {}
+    local resetHints = {}
     local api = C_LootLockout
     if type(api) ~= "table" or type(api.GetLootLockouts) ~= "function" or type(api.GetEncounterData) ~= "function" then
-        return lockouts
+        return lockouts, resetHints
     end
 
     local ok, rawLockouts = pcall(api.GetLootLockouts, "player")
-    if not ok or type(rawLockouts) ~= "table" then return lockouts end
+    if not ok or type(rawLockouts) ~= "table" then return lockouts, resetHints end
 
     for rawMapID, difficulties in pairs(rawLockouts) do
         if type(difficulties) == "table" then
             for _, encounters in pairs(difficulties) do
                 if type(encounters) == "table" then
                     local encounterCount = 0
-                    local onlyEncounterID = nil
-                    local onlyRemaining = nil
-                    for encounterID, remaining in pairs(encounters) do
-                        if tonumber(encounterID) and tonumber(remaining) and tonumber(remaining) > 0 then
+                    local sampleEncounterID = nil
+                    local sampleRemaining = nil
+                    local maximumRemaining = 0
+                    for rawEncounterID, rawRemaining in pairs(encounters) do
+                        local encounterID = tonumber(rawEncounterID)
+                        rawRemaining = tonumber(rawRemaining)
+                        if encounterID and rawRemaining and rawRemaining > 0 then
                             encounterCount = encounterCount + 1
-                            onlyEncounterID = tonumber(encounterID)
-                            onlyRemaining = tonumber(remaining)
+                            sampleEncounterID = encounterID
+                            sampleRemaining = rawRemaining
+                            maximumRemaining = math.max(maximumRemaining, rawRemaining)
                         end
                     end
 
                     -- Ascension records ordinary raids as one loot lock per boss.
                     -- Standalone world bosses use a single encounter with order 1000.
-                    -- Requiring both prevents partial or multi-boss raids from appearing
-                    -- as a list of boss names beside the standard instance lockout.
-                    if encounterCount == 1 and onlyEncounterID then
-                        local dataOK, name, mapID, difficultyID, _, orderIndex, remaining = pcall(api.GetEncounterData, "player", onlyEncounterID)
+                    -- Keep standalone bosses as rows. For ordinary raids, retain only a
+                    -- reset hint so Lucifron/Magmadar/etc. never become table rows.
+                    if encounterCount > 0 and sampleEncounterID then
+                        local dataOK, name, mapID, difficultyID, _, orderIndex, remaining = pcall(api.GetEncounterData, "player", sampleEncounterID)
                         name = trim(name)
-                        if dataOK and name ~= "" and tonumber(orderIndex) == ASCENSION_STANDALONE_ORDER then
-                            remaining = tonumber(remaining)
-                            if not remaining or remaining <= 0 then remaining = onlyRemaining end
-                            if remaining and remaining > 0 then
+                        mapID = tonumber(mapID) or tonumber(rawMapID)
+                        difficultyID = tonumber(difficultyID)
+                        remaining = tonumber(remaining)
+                        if not remaining or remaining <= 0 then remaining = sampleRemaining end
+                        if encounterCount > 1 then
+                            remaining = math.max(tonumber(remaining) or 0, maximumRemaining)
+                        end
+
+                        if dataOK and encounterCount == 1 and name ~= "" and tonumber(orderIndex) == ASCENSION_STANDALONE_ORDER then
+                            local difficulty = self:NormalizeLootDifficulty(difficultyID)
+                            local resetAt, resetKnown = self:ResolveResetAt(currentTime, remaining)
+                            table.insert(lockouts, {
+                                name = name,
+                                instanceID = sampleEncounterID,
+                                instanceIDMostSig = mapID,
+                                mapID = mapID,
+                                encounterID = sampleEncounterID,
+                                difficultyID = difficultyID,
+                                difficultyName = difficulty,
+                                difficultyKey = difficulty,
+                                maxPlayers = 0,
+                                locked = true,
+                                extended = false,
+                                resetAt = resetAt,
+                                resetKnown = resetKnown,
+                                source = "ascensionLoot"
+                            })
+                        elseif dataOK and mapID and difficultyID and type(GetMapName) == "function" then
+                            local nameOK, mapName = pcall(GetMapName, mapID)
+                            mapName = nameOK and trim(mapName) or ""
+                            if mapName ~= "" then
                                 local difficulty = self:NormalizeLootDifficulty(difficultyID)
                                 local resetAt, resetKnown = self:ResolveResetAt(currentTime, remaining)
-                                table.insert(lockouts, {
-                                    name = name,
-                                    instanceID = onlyEncounterID,
-                                    instanceIDMostSig = tonumber(mapID) or tonumber(rawMapID),
-                                    mapID = tonumber(mapID) or tonumber(rawMapID),
-                                    encounterID = onlyEncounterID,
-                                    difficultyID = tonumber(difficultyID),
-                                    difficultyName = difficulty,
-                                    difficultyKey = difficulty,
-                                    maxPlayers = 0,
-                                    locked = true,
-                                    extended = false,
-                                    resetAt = resetAt,
-                                    resetKnown = resetKnown,
-                                    source = "ascensionLoot"
-                                })
+                                local hintKey = content_difficulty_key(mapName, difficulty)
+                                local existing = resetHints[hintKey]
+                                if resetKnown and (not existing or resetAt > existing.resetAt) then
+                                    resetHints[hintKey] = {
+                                        mapID = mapID,
+                                        difficultyID = difficultyID,
+                                        difficultyKey = difficulty,
+                                        resetAt = resetAt,
+                                        resetKnown = true
+                                    }
+                                end
                             end
                         end
                     end
@@ -472,19 +499,29 @@ function module:CollectAscensionLootLockouts(currentTime)
         end
     end
 
-    return lockouts
+    return lockouts, resetHints
 end
 
 function module:CollectCurrentLockouts(currentTime)
     local lockouts = self:CollectStandardLockouts(currentTime)
     local byNameDifficulty = {}
+    local ascensionLockouts, resetHints = self:CollectAscensionLootLockouts(currentTime)
 
     for _, lockout in ipairs(lockouts) do
         local key = lower(trim(lockout.name)) .. "\031" .. lower(trim(lockout.difficultyKey))
         if not byNameDifficulty[key] then byNameDifficulty[key] = lockout end
+
+        local hint = resetHints[content_difficulty_key(lockout.name, lockout.difficultyKey)]
+        if hint and hint.resetKnown and not lockout.resetKnown then
+            lockout.resetAt = hint.resetAt
+            lockout.resetKnown = true
+            lockout.mapID = hint.mapID
+            lockout.lootDifficultyID = hint.difficultyID
+            lockout.resetSource = "ascensionBosses"
+        end
     end
 
-    for _, lockout in ipairs(self:CollectAscensionLootLockouts(currentTime)) do
+    for _, lockout in ipairs(ascensionLockouts) do
         local key = lower(trim(lockout.name)) .. "\031" .. lower(trim(lockout.difficultyKey))
         local existing = byNameDifficulty[key]
         if existing then

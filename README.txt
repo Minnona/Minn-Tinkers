@@ -3,7 +3,7 @@ Minn Tinkers
 
 Personal WoW 3.3.5a quality-of-life addon.
 
-Version: 0.1.48
+Version: 0.1.49
 License: GPL-3.0
 
 Install:
@@ -59,6 +59,7 @@ Raid Lockouts:
 - Click the logged-in character's name to open Ascension's confirmation for resetting that specific saved ID.
 - Common server reset durations appear once beside the raid or world-boss name.
 - Ascension standalone world-boss loot locks are merged with standard raid saves when the normal API omits them.
+- Hidden per-boss loot timers fill in missing raid reset durations without adding individual boss rows.
 
 PvP:
 - Automatically releases your spirit after death in battlegrounds when enabled.
@@ -90,6 +91,10 @@ Most other controls are handled through the settings UI.
 Advanced/dev actions are under /minn debug.
 
 Changelog:
+
+0.1.49
+- Recovered missing Molten Core and Zul'Gurub reset durations from Ascension's hidden per-boss loot locks.
+- Hidden ordinary raid bosses remain aggregated into their raid row instead of appearing as individual lockouts.
 
 0.1.48
 - Made the logged-in character's raid and world-boss table names clickable.
