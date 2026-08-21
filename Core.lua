@@ -5,7 +5,7 @@ _G.MinnTinkers = MT
 
 MT.addonName = ADDON_NAME or "MinnTinkers"
 MT.displayName = "Minn Tinkers"
-MT.version = "0.1.50"
+MT.version = "0.1.51"
 MT.modules = {}
 MT.moduleOrder = {}
 MT.globalDB = nil

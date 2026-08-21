@@ -424,7 +424,7 @@ Future polish target: avoid permanent `OnUpdate`; only run while pending, visibl
 Current expected version after latest handoff:
 
 ```text
-0.1.50
+0.1.51
 ```
 
 When changing files, bump TOC version only when it is a real user-facing patch. Keep README/README.txt in sync if doing a release-style update.
@@ -468,6 +468,7 @@ Raid Lockouts colors active names by difficulty and resettable expired binds gre
 Raid Lockouts refreshes automatically when its settings page opens
 Logged-in character names open Ascension's specific saved-ID reset confirmation; offline names do not
 Molten Core and Zul'Gurub with zero standard reset durations inherit hidden per-boss reset timers without adding boss rows
+Successful Ascension bind queries request fresh Blizzard raid info and only snapshot after UPDATE_INSTANCE_INFO
 Chat suppression restores only the selected numbered channels to their original windows after raids, dungeons, and battlegrounds
 Chat suppression leaves arenas and non-channel message groups unchanged
 Auto-mark Roles restores remembered Star/Moon players after Mythic+ activation

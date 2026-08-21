@@ -3,7 +3,7 @@ Minn Tinkers
 
 Personal WoW 3.3.5a quality-of-life addon.
 
-Version: 0.1.50
+Version: 0.1.51
 License: GPL-3.0
 
 Install:
@@ -91,6 +91,10 @@ Most other controls are handled through the settings UI.
 Advanced/dev actions are under /minn debug.
 
 Changelog:
+
+0.1.51
+- Refreshes Blizzard's saved-instance cache before rebuilding the table after an Ascension lockout is reset.
+- Lockouts cleared through either the addon or the native reset menus now disappear from the current character's table automatically.
 
 0.1.50
 - Removed the redundant yellow Raids and World Bosses labels to make the lockout tables more compact.

@@ -603,6 +603,20 @@ function module:RequestSnapshot(core, force)
     return requested
 end
 
+function module:RequestStandardRefreshAfterBind(core)
+    if type(RequestRaidInfo) == "function" then
+        local ok = pcall(RequestRaidInfo)
+        if ok then
+            self.scanPending = true
+            return true
+        end
+    end
+
+    -- Custom-only clients have no standard cache/event to wait for.
+    self:SnapshotCurrentCharacter(core, now_time())
+    return false
+end
+
 function module:GetVisibleCharacters(core, currentTime, currentRealmOnly)
     local store = self:GetStore(core)
     local characters = {}
@@ -929,8 +943,10 @@ function module:OnEvent(core, event, ...)
     if event == "UPDATE_INSTANCE_INFO" then
         self:SnapshotCurrentCharacter(core, now_time())
     elseif event == "QUERY_INSTANCE_BINDS_RESULT" then
-        local success = ...
-        if success ~= false then self:SnapshotCurrentCharacter(core, now_time()) end
+        local first, second = ...
+        local success = first
+        if type(second) == "boolean" then success = second end
+        if success ~= false then self:RequestStandardRefreshAfterBind(core) end
     elseif event == "PLAYER_LOGIN" or event == "PLAYER_ENTERING_WORLD" or event == "RAID_INSTANCE_WELCOME" then
         self:RequestSnapshot(core, false)
     end

@@ -178,6 +178,12 @@ snowgraveRow = find_row(model.worldBosses, "snowgrave")
 assert(find_entry(snowgraveRow.cells.Normal.entries, "Testchar").resettable, "legacy zero-duration snapshot disappeared from the table")
 
 local queryCount = 0
+local lootLockouts = {
+    [891] = { [1] = { [37001] = 438881 } },
+    [409] = { [1] = { [4126] = 93281, [4127] = 93281 } },
+    [249] = { [2] = { [4149] = 80000 } },
+    [777] = { [0] = { [50001] = 5000 } }
+}
 C_LootLockout = {
     QueryInstanceBinds = function()
         queryCount = queryCount + 1
@@ -185,12 +191,7 @@ C_LootLockout = {
     end,
     GetLootLockouts = function(unit)
         assert(unit == "player", "Ascension loot lockouts were not queried with a unit token")
-        return {
-            [891] = { [1] = { [37001] = 438881 } },
-            [409] = { [1] = { [4126] = 93281, [4127] = 93281 } },
-            [249] = { [2] = { [4149] = 80000 } },
-            [777] = { [0] = { [50001] = 5000 } }
-        }
+        return lootLockouts
     end,
     GetEncounterData = function(unit, encounterID)
         assert(unit == "player", "Ascension encounter data was not queried with a unit token")
@@ -240,7 +241,9 @@ assert(captured:RequestSnapshot(core, true), "combined lockout refresh request f
 assert(standardRequestCount == 1, "standard raid information was not requested")
 assert(queryCount == 1, "Ascension instance binds were not requested")
 
-captured:OnEvent(core, "QUERY_INSTANCE_BINDS_RESULT", true, "QUERY_INSTANCE_BINDS_OK")
+captured:OnEvent(core, "QUERY_INSTANCE_BINDS_RESULT", 4, true, "QUERY_INSTANCE_BINDS_OK")
+assert(standardRequestCount == 2, "successful Ascension bind query did not request fresh standard raid information")
+captured:OnEvent(core, "UPDATE_INSTANCE_INFO")
 for _, value in pairs(store.characters) do
     if value.name == "Testchar" then character = value end
 end
@@ -265,6 +268,29 @@ local kaldrosEntry = find_entry(kaldrosRow.cells.Heroic.entries, "Testchar")
 assert(kaldrosEntry, "Kaldros was not placed in the Heroic world-boss column")
 assert(kaldrosEntry.resetTarget and kaldrosEntry.resetTarget.mapID == 891 and kaldrosEntry.resetTarget.difficultyID == 2, "Kaldros was not linked to its Heroic reset target")
 assert(kaldrosRow.resetAt == currentTime + 438663, "world-boss reset was not moved to its row")
+
+lootLockouts[891] = nil
+captured:OnEvent(core, "QUERY_INSTANCE_BINDS_RESULT", 3, true, "QUERY_INSTANCE_BINDS_OK")
+assert(standardRequestCount == 3, "lockout reset did not request fresh standard raid information")
+model = captured:BuildTableModel(core, currentTime)
+kaldrosRow = find_row(model.worldBosses, "kaldros")
+assert(find_entry(kaldrosRow.cells.Heroic.entries, "Testchar"), "table changed before the standard saved-instance cache refreshed")
+captured:OnEvent(core, "UPDATE_INSTANCE_INFO")
+model = captured:BuildTableModel(core, currentTime)
+kaldrosRow = find_row(model.worldBosses, "kaldros")
+assert(not find_entry(kaldrosRow.cells.Heroic.entries, "Testchar"), "cleared Ascension lockout remained after the standard cache refresh")
+
+for index = table.getn(saved), 1, -1 do
+    if saved[index][1] == "Zul'Gurub" then table.remove(saved, index) end
+end
+lootLockouts[249] = nil
+captured:OnEvent(core, "UPDATE_INSTANCE_INFO")
+model = captured:BuildTableModel(core, currentTime)
+zulGurub = find_row(model.raids, "zulgurub")
+assert(not find_entry(zulGurub.cells.Mythic.entries, "Testchar"), "cleared standard raid lockout remained after UPDATE_INSTANCE_INFO")
+
+captured:OnEvent(core, "QUERY_INSTANCE_BINDS_RESULT", 2, false, "QUERY_INSTANCE_BINDS_FAILED")
+assert(standardRequestCount == 3, "failed Ascension bind query requested a standard refresh: " .. tostring(standardRequestCount))
 
 store.characters.other = {
     name = "Otherchar",
