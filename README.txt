@@ -3,7 +3,7 @@ Minn Tinkers
 
 Personal WoW 3.3.5a quality-of-life addon.
 
-Version: 0.1.49
+Version: 0.1.50
 License: GPL-3.0
 
 Install:
@@ -91,6 +91,9 @@ Most other controls are handled through the settings UI.
 Advanced/dev actions are under /minn debug.
 
 Changelog:
+
+0.1.50
+- Removed the redundant yellow Raids and World Bosses labels to make the lockout tables more compact.
 
 0.1.49
 - Recovered missing Molten Core and Zul'Gurub reset durations from Ascension's hidden per-boss loot locks.

@@ -7,6 +7,7 @@ local ASCENSION_STANDALONE_ORDER = 1000
 local TABLE_WIDTH = 556
 local TABLE_LABEL_WIDTH = 180
 local TABLE_LINE_HEIGHT = 15
+local TABLE_HEADER_HEIGHT = 20
 
 local DIFFICULTY_ORDER = { "Normal", "Heroic", "Mythic", "Ascended" }
 local DIFFICULTY_RANK = {
@@ -733,25 +734,21 @@ local function set_frame_background(frame, alpha)
     frame.background:SetTexture(1, 1, 1, alpha or 0.04)
 end
 
-function module:CreateSectionControls(panel, sectionKey, title, difficulties)
+function module:CreateSectionControls(panel, sectionKey, difficulties)
     self.tableSections = self.tableSections or {}
     local section = self.tableSections[sectionKey]
     if section then return section end
 
     section = {
-        title = title,
         difficulties = difficulties,
         rows = {}
     }
     section.header = CreateFrame("Frame", nil, panel)
     section.header:SetWidth(TABLE_WIDTH)
-    section.header:SetHeight(42)
-    section.titleLabel = section.header:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    section.titleLabel:SetPoint("TOPLEFT", section.header, "TOPLEFT", 0, 0)
-    section.titleLabel:SetText(title)
+    section.header:SetHeight(TABLE_HEADER_HEIGHT)
 
     section.nameHeader = section.header:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    section.nameHeader:SetPoint("TOPLEFT", section.header, "TOPLEFT", 6, -22)
+    section.nameHeader:SetPoint("TOPLEFT", section.header, "TOPLEFT", 6, 0)
     section.nameHeader:SetWidth(TABLE_LABEL_WIDTH - 12)
     section.nameHeader:SetJustifyH("LEFT")
     section.nameHeader:SetText(sectionKey == "raids" and "Raid" or "World boss")
@@ -761,7 +758,7 @@ function module:CreateSectionControls(panel, sectionKey, title, difficulties)
     section.difficultyHeaders = {}
     for index, difficulty in ipairs(difficulties) do
         local label = section.header:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-        label:SetPoint("TOPLEFT", section.header, "TOPLEFT", TABLE_LABEL_WIDTH + ((index - 1) * cellWidth), -22)
+        label:SetPoint("TOPLEFT", section.header, "TOPLEFT", TABLE_LABEL_WIDTH + ((index - 1) * cellWidth), 0)
         label:SetWidth(cellWidth)
         label:SetJustifyH("CENTER")
         label:SetText((DIFFICULTY_COLOR[difficulty] or "|cffffffff") .. difficulty .. "|r")
@@ -876,7 +873,7 @@ function module:RefreshTableSection(core, panel, section, rows, currentTime, y)
     section.header:ClearAllPoints()
     section.header:SetPoint("TOPLEFT", panel, "TOPLEFT", 12, y)
     section.header:Show()
-    y = y - 44
+    y = y - TABLE_HEADER_HEIGHT - 2
 
     local visibleRows = {}
     for index, row in ipairs(rows) do
@@ -912,8 +909,8 @@ function module:RefreshTable(core)
     if not self.settingsPage or not self.tableTopY then return end
     local currentTime = now_time()
     local model = self:BuildTableModel(core, currentTime)
-    local raidSection = self:CreateSectionControls(self.settingsPage, "raids", "Raids", RAID_DIFFICULTIES)
-    local worldBossSection = self:CreateSectionControls(self.settingsPage, "worldBosses", "World Bosses", WORLD_BOSS_DIFFICULTIES)
+    local raidSection = self:CreateSectionControls(self.settingsPage, "raids", RAID_DIFFICULTIES)
+    local worldBossSection = self:CreateSectionControls(self.settingsPage, "worldBosses", WORLD_BOSS_DIFFICULTIES)
     local y = self.tableTopY
 
     y = self:RefreshTableSection(core, self.settingsPage, raidSection, model.raids, currentTime, y)
