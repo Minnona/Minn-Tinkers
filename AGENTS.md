@@ -319,7 +319,7 @@ Store the exact channel names removed from each chat window in the per-character
 
 Own tab: **Raid Lockouts**, between Raid Rolls and PvP.
 
-Stores account-wide character snapshots under `MinnTinkersDB.raidLockouts`. Scans only through `RequestRaidInfo` / `UPDATE_INSTANCE_INFO` and instance/login events; do not add permanent polling. The report is always current-realm-only and hides expired entries. Use the API-provided difficulty name first, preserve unknown custom difficulties, show offline scan age, and never imply that an offline character was queried live. Ascension may return a zero reset duration for a visibly locked raid; retain those lockouts without a timer instead of treating them as immediately expired.
+Stores account-wide character snapshots under `MinnTinkersDB.raidLockouts`. Scans through `RequestRaidInfo` / `UPDATE_INSTANCE_INFO` plus Ascension's `C_LootLockout.QueryInstanceBinds` / `QUERY_INSTANCE_BINDS_RESULT`; do not add permanent polling. Merge standalone custom loot locks resolved through `GetEncounterData("player", encounterID)` with standard saves, deduplicate by raid name and difficulty, and never expand ordinary multi-boss raid loot locks into individual boss rows. The report is always current-realm-only and hides expired entries. Use the API-provided difficulty name first, preserve unknown custom difficulties, show offline scan age, and never imply that an offline character was queried live. Ascension may return a zero reset duration for a visibly locked raid; retain those lockouts without a timer instead of treating them as immediately expired.
 
 ### BattlegroundsPvP.lua
 

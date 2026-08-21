@@ -4,6 +4,7 @@ local STORE_SCHEMA = 1
 local EXPIRED_RETENTION = 30 * 24 * 60 * 60
 local REQUEST_THROTTLE = 5
 local STALE_SECONDS = 3 * 24 * 60 * 60
+local ASCENSION_STANDALONE_ORDER = 1000
 
 local DIFFICULTY_ORDER = { "Normal", "Heroic", "Mythic", "Ascended" }
 local DIFFICULTY_RANK = {
@@ -80,6 +81,15 @@ function module:NormalizeDifficulty(difficultyName, difficultyID)
     if difficultyID == 4 then return "Heroic" end
     if difficultyID == 5 then return "Mythic" end
     if difficultyID == 6 then return "Ascended" end
+    return "Difficulty " .. tostring(difficultyID or "Unknown")
+end
+
+function module:NormalizeLootDifficulty(difficultyID)
+    difficultyID = tonumber(difficultyID)
+    if difficultyID == 1 then return "Normal" end
+    if difficultyID == 2 then return "Heroic" end
+    if difficultyID == 3 then return "Mythic" end
+    if difficultyID == 4 then return "Ascended" end
     return "Difficulty " .. tostring(difficultyID or "Unknown")
 end
 
@@ -186,7 +196,17 @@ function module:PruneStore(core, currentTime)
     end
 end
 
-function module:CollectCurrentLockouts(currentTime)
+function module:SortLockouts(lockouts)
+    table.sort(lockouts, function(a, b)
+        if lower(a.name) ~= lower(b.name) then return lower(a.name) < lower(b.name) end
+        if difficulty_rank(a.difficultyKey) ~= difficulty_rank(b.difficultyKey) then
+            return difficulty_rank(a.difficultyKey) < difficulty_rank(b.difficultyKey)
+        end
+        return (a.maxPlayers or 0) < (b.maxPlayers or 0)
+    end)
+end
+
+function module:CollectStandardLockouts(currentTime)
     local lockouts = {}
     if not GetNumSavedInstances or not GetSavedInstanceInfo then return lockouts end
 
@@ -212,13 +232,98 @@ function module:CollectCurrentLockouts(currentTime)
         end
     end
 
-    table.sort(lockouts, function(a, b)
-        if lower(a.name) ~= lower(b.name) then return lower(a.name) < lower(b.name) end
-        if difficulty_rank(a.difficultyKey) ~= difficulty_rank(b.difficultyKey) then
-            return difficulty_rank(a.difficultyKey) < difficulty_rank(b.difficultyKey)
+    return lockouts
+end
+
+function module:CollectAscensionLootLockouts(currentTime)
+    local lockouts = {}
+    local api = C_LootLockout
+    if type(api) ~= "table" or type(api.GetLootLockouts) ~= "function" or type(api.GetEncounterData) ~= "function" then
+        return lockouts
+    end
+
+    local ok, rawLockouts = pcall(api.GetLootLockouts, "player")
+    if not ok or type(rawLockouts) ~= "table" then return lockouts end
+
+    for rawMapID, difficulties in pairs(rawLockouts) do
+        if type(difficulties) == "table" then
+            for _, encounters in pairs(difficulties) do
+                if type(encounters) == "table" then
+                    local encounterCount = 0
+                    local onlyEncounterID = nil
+                    local onlyRemaining = nil
+                    for encounterID, remaining in pairs(encounters) do
+                        if tonumber(encounterID) and tonumber(remaining) and tonumber(remaining) > 0 then
+                            encounterCount = encounterCount + 1
+                            onlyEncounterID = tonumber(encounterID)
+                            onlyRemaining = tonumber(remaining)
+                        end
+                    end
+
+                    -- Ascension records ordinary raids as one loot lock per boss.
+                    -- Standalone world bosses use a single encounter with order 1000.
+                    -- Requiring both prevents partial or multi-boss raids from appearing
+                    -- as a list of boss names beside the standard instance lockout.
+                    if encounterCount == 1 and onlyEncounterID then
+                        local dataOK, name, mapID, difficultyID, _, orderIndex, remaining = pcall(api.GetEncounterData, "player", onlyEncounterID)
+                        name = trim(name)
+                        if dataOK and name ~= "" and tonumber(orderIndex) == ASCENSION_STANDALONE_ORDER then
+                            remaining = tonumber(remaining)
+                            if not remaining or remaining <= 0 then remaining = onlyRemaining end
+                            if remaining and remaining > 0 then
+                                local difficulty = self:NormalizeLootDifficulty(difficultyID)
+                                local resetAt, resetKnown = self:ResolveResetAt(currentTime, remaining)
+                                table.insert(lockouts, {
+                                    name = name,
+                                    instanceID = onlyEncounterID,
+                                    instanceIDMostSig = tonumber(mapID) or tonumber(rawMapID),
+                                    mapID = tonumber(mapID) or tonumber(rawMapID),
+                                    encounterID = onlyEncounterID,
+                                    difficultyID = tonumber(difficultyID),
+                                    difficultyName = difficulty,
+                                    difficultyKey = difficulty,
+                                    maxPlayers = 0,
+                                    locked = true,
+                                    extended = false,
+                                    resetAt = resetAt,
+                                    resetKnown = resetKnown,
+                                    source = "ascensionLoot"
+                                })
+                            end
+                        end
+                    end
+                end
+            end
         end
-        return (a.maxPlayers or 0) < (b.maxPlayers or 0)
-    end)
+    end
+
+    return lockouts
+end
+
+function module:CollectCurrentLockouts(currentTime)
+    local lockouts = self:CollectStandardLockouts(currentTime)
+    local byNameDifficulty = {}
+
+    for _, lockout in ipairs(lockouts) do
+        local key = lower(trim(lockout.name)) .. "\031" .. lower(trim(lockout.difficultyKey))
+        if not byNameDifficulty[key] then byNameDifficulty[key] = lockout end
+    end
+
+    for _, lockout in ipairs(self:CollectAscensionLootLockouts(currentTime)) do
+        local key = lower(trim(lockout.name)) .. "\031" .. lower(trim(lockout.difficultyKey))
+        local existing = byNameDifficulty[key]
+        if existing then
+            if lockout.resetKnown and not existing.resetKnown then
+                existing.resetAt = lockout.resetAt
+                existing.resetKnown = true
+            end
+        else
+            table.insert(lockouts, lockout)
+            byNameDifficulty[key] = lockout
+        end
+    end
+
+    self:SortLockouts(lockouts)
     return lockouts
 end
 
@@ -249,7 +354,14 @@ function module:SnapshotCurrentCharacter(core, currentTime)
 end
 
 function module:RequestSnapshot(core, force)
-    if not RequestRaidInfo then
+    local api = C_LootLockout
+    local canRequestStandard = type(RequestRaidInfo) == "function"
+    local canRequestAscension = type(api) == "table"
+        and type(api.QueryInstanceBinds) == "function"
+        and type(api.GetLootLockouts) == "function"
+        and type(api.GetEncounterData) == "function"
+
+    if not canRequestStandard and not canRequestAscension then
         self.statusMessage = "Raid lockout API is unavailable."
         self:RefreshReport(core)
         return false
@@ -263,13 +375,21 @@ function module:RequestSnapshot(core, force)
     self.lastRequestAt = currentTime
     self.scanPending = true
     self.statusMessage = "Requesting current character lockouts..."
-    local ok = pcall(RequestRaidInfo)
-    if not ok then
+    local standardOK = false
+    local ascensionOK = false
+    if canRequestStandard then standardOK = pcall(RequestRaidInfo) end
+    if canRequestAscension then
+        local queryOK, queryResult = pcall(api.QueryInstanceBinds)
+        ascensionOK = queryOK and queryResult ~= false
+    end
+
+    local requested = standardOK or ascensionOK
+    if not requested then
         self.scanPending = false
         self.statusMessage = "Could not request raid lockouts."
     end
     self:RefreshReport(core)
-    return ok and true or false
+    return requested
 end
 
 function module:ForgetCurrentCharacter(core)
@@ -467,9 +587,12 @@ function module:RefreshReport(core)
     end
 end
 
-function module:OnEvent(core, event)
+function module:OnEvent(core, event, ...)
     if event == "UPDATE_INSTANCE_INFO" then
         self:SnapshotCurrentCharacter(core, now_time())
+    elseif event == "QUERY_INSTANCE_BINDS_RESULT" then
+        local success = ...
+        if success ~= false then self:SnapshotCurrentCharacter(core, now_time()) end
     elseif event == "PLAYER_LOGIN" or event == "PLAYER_ENTERING_WORLD" or event == "RAID_INSTANCE_WELCOME" then
         self:RequestSnapshot(core, false)
     end
@@ -479,14 +602,15 @@ local EVENTS = {
     "PLAYER_LOGIN",
     "PLAYER_ENTERING_WORLD",
     "RAID_INSTANCE_WELCOME",
-    "UPDATE_INSTANCE_INFO"
+    "UPDATE_INSTANCE_INFO",
+    "QUERY_INSTANCE_BINDS_RESULT"
 }
 
 function module:OnEnable(core)
     self:GetStore(core)
     if not self.frame then
         self.frame = CreateFrame("Frame")
-        self.frame:SetScript("OnEvent", function(_, event) module:OnEvent(core, event) end)
+        self.frame:SetScript("OnEvent", function(_, event, ...) module:OnEvent(core, event, ...) end)
     end
     for _, event in ipairs(EVENTS) do safe_register(self.frame, event) end
     self:RequestSnapshot(core, false)

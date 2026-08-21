@@ -3,7 +3,7 @@ Minn Tinkers
 
 Personal WoW 3.3.5a quality-of-life addon.
 
-Version: 0.1.45
+Version: 0.1.46
 License: GPL-3.0
 
 Install:
@@ -57,6 +57,7 @@ Raid Lockouts:
 - Supports by-raid and by-character views, current-realm-only display, manual refresh, and forgetting the current character.
 - Offline data is labeled with its last scan time because offline characters cannot be queried directly.
 - If Ascension reports no reset duration for a locked raid, the lockout remains visible without a timer.
+- Ascension standalone world-boss loot locks are merged with standard raid saves when the normal API omits them.
 
 PvP:
 - Automatically releases your spirit after death in battlegrounds when enabled.
@@ -88,6 +89,11 @@ Most other controls are handled through the settings UI.
 Advanced/dev actions are under /minn debug.
 
 Changelog:
+
+0.1.46
+- Added Ascension standalone world-boss lockouts that are omitted by the standard saved-instance API.
+- Custom lockouts are resolved through Ascension's encounter API and deduplicated against standard raid saves.
+- Multi-boss raid loot locks remain grouped under their normal saved-instance entry instead of appearing as individual bosses.
 
 0.1.45
 - Renamed the Chat page sections to "Mute channels in these chat windows" and "Channels to mute".

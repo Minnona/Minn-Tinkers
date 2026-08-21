@@ -18,6 +18,10 @@ assert(captured:NormalizeDifficulty("25 Player (Heroic)", 4) == "Heroic", "heroi
 assert(captured:NormalizeDifficulty("Mythic Raid", 5) == "Mythic", "mythic difficulty name was not normalized")
 assert(captured:NormalizeDifficulty("Ascended Raid", 6) == "Ascended", "ascended difficulty name was not normalized")
 assert(captured:NormalizeDifficulty("Heroic Bloodforged", 2) == "Heroic Bloodforged", "custom difficulty was collapsed into a standard tier")
+assert(captured:NormalizeLootDifficulty(1) == "Normal", "Ascension Normal difficulty was not normalized")
+assert(captured:NormalizeLootDifficulty(2) == "Heroic", "Ascension Heroic difficulty was not normalized")
+assert(captured:NormalizeLootDifficulty(3) == "Mythic", "Ascension Mythic difficulty was not normalized")
+assert(captured:NormalizeLootDifficulty(4) == "Ascended", "Ascension Ascended difficulty was not normalized")
 assert(captured:FormatDuration(90061) == "1d 1h", "day reset duration was formatted incorrectly")
 assert(captured:FormatDuration(3661) == "1h 1m", "hour reset duration was formatted incorrectly")
 assert(captured:FormatDuration(0) == "expired", "expired reset duration was formatted incorrectly")
@@ -57,6 +61,7 @@ GetNumSavedInstances = function() return table.getn(saved) end
 GetSavedInstanceInfo = function(index) return unpack(saved[index]) end
 
 local currentTime = 100000
+time = function() return currentTime end
 assert(captured:SnapshotCurrentCharacter(core, currentTime), "current character snapshot failed")
 
 local store = core.globalDB.raidLockouts
@@ -85,6 +90,66 @@ snowgrave.resetAt = character.lastScan
 snowgrave.resetKnown = nil
 report = captured:BuildReport(core, currentTime + 60)
 assert(string.find(report, "Snowgrave", 1, true), "legacy zero-duration snapshot disappeared as expired")
+
+local queryCount = 0
+C_LootLockout = {
+    QueryInstanceBinds = function()
+        queryCount = queryCount + 1
+        return true
+    end,
+    GetLootLockouts = function(unit)
+        assert(unit == "player", "Ascension loot lockouts were not queried with a unit token")
+        return {
+            [891] = { [1] = { [37001] = 438881 } },
+            [409] = { [1] = { [4126] = 93281, [4127] = 93281 } },
+            [777] = { [0] = { [50001] = 5000 } }
+        }
+    end,
+    GetEncounterData = function(unit, encounterID)
+        assert(unit == "player", "Ascension encounter data was not queried with a unit token")
+        if encounterID == 37001 then
+            return "Kaldros Depthbreaker (PvE)", 891, 2, "Interface\\Icons\\inv_misc_questionmark", 1000, 438663
+        elseif encounterID == 4126 then
+            return "Lucifron", 409, 2, "", 1, 93281
+        elseif encounterID == 4127 then
+            return "Magmadar", 409, 2, "", 2, 93281
+        elseif encounterID == 50001 then
+            return "Snowgrave (PvE)", 777, 1, "", 1000, 5000
+        end
+    end
+}
+
+local merged = captured:CollectCurrentLockouts(currentTime)
+assert(table.getn(merged) == 5, "custom lockout merge added duplicates or raid boss rows: " .. tostring(table.getn(merged)))
+local kaldros
+local lucifron
+local snowgraveCount = 0
+for _, lockout in ipairs(merged) do
+    if lockout.name == "Kaldros Depthbreaker (PvE)" then kaldros = lockout end
+    if lockout.name == "Lucifron" then lucifron = lockout end
+    if lockout.name == "Snowgrave (PvE)" then snowgraveCount = snowgraveCount + 1 end
+end
+assert(kaldros and kaldros.difficultyKey == "Heroic", "Kaldros custom Heroic lockout was not collected")
+assert(kaldros.resetKnown and kaldros.resetAt == currentTime + 438663, "Kaldros custom reset time was not stored")
+assert(not lucifron, "multi-boss raid loot locks were exposed as boss lockout rows")
+assert(snowgraveCount == 1, "custom lockout duplicated an existing standard lockout")
+
+local standardRequestCount = 0
+RequestRaidInfo = function() standardRequestCount = standardRequestCount + 1 end
+captured.lastRequestAt = nil
+assert(captured:RequestSnapshot(core, true), "combined lockout refresh request failed")
+assert(standardRequestCount == 1, "standard raid information was not requested")
+assert(queryCount == 1, "Ascension instance binds were not requested")
+
+captured:OnEvent(core, "QUERY_INSTANCE_BINDS_RESULT", true, "QUERY_INSTANCE_BINDS_OK")
+for _, value in pairs(store.characters) do
+    if value.name == "Testchar" then character = value end
+end
+local eventKaldros = false
+for _, lockout in ipairs(character.lockouts or {}) do
+    if lockout.name == "Kaldros Depthbreaker (PvE)" then eventKaldros = true end
+end
+assert(eventKaldros, "successful Ascension bind query did not refresh the character snapshot")
 
 store.characters.other = {
     name = "Otherchar",
