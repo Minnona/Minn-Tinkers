@@ -3,8 +3,10 @@ local MT = MinnTinkers
 local STORE_SCHEMA = 1
 local EXPIRED_RETENTION = 30 * 24 * 60 * 60
 local REQUEST_THROTTLE = 5
-local STALE_SECONDS = 3 * 24 * 60 * 60
 local ASCENSION_STANDALONE_ORDER = 1000
+local TABLE_WIDTH = 556
+local TABLE_LABEL_WIDTH = 180
+local TABLE_LINE_HEIGHT = 15
 
 local DIFFICULTY_ORDER = { "Normal", "Heroic", "Mythic", "Ascended" }
 local DIFFICULTY_RANK = {
@@ -19,14 +21,37 @@ local DIFFICULTY_COLOR = {
     Mythic = "|cffff66ff",
     Ascended = "|cffff9933"
 }
+local RESETTABLE_COLOR = "|cff777777"
+
+local RAID_CATALOG = {
+    { key = "moltencore", label = "Molten Core" },
+    { key = "zulgurub", label = "Zul'Gurub" },
+    { key = "onyxiaslair", label = "Onyxia's Lair" }
+}
+local WORLD_BOSS_CATALOG = {
+    { key = "atalzul", label = "Atal'Zul" },
+    { key = "azuregos", label = "Azuregos" },
+    { key = "emeriss", label = "Emeriss" },
+    { key = "kaldros", label = "Kaldros" },
+    { key = "lethon", label = "Lethon" },
+    { key = "kazzak", label = "Kazzak" },
+    { key = "setis", label = "Setis" },
+    { key = "snowgrave", label = "Snowgrave" },
+    { key = "taerar", label = "Taerar" },
+    { key = "soggoth", label = "Soggoth" },
+    { key = "ysondre", label = "Ysondre" }
+}
+local RAID_DIFFICULTIES = { "Normal", "Heroic", "Mythic", "Ascended" }
+local WORLD_BOSS_DIFFICULTIES = { "Normal", "Heroic" }
 
 local module = {
     name = "Raid lockout tracker",
     desc = "Tracks raid lockouts and reset times across characters that use this account's SavedVariables.",
     category = "RaidLockouts",
+    alwaysEnabled = true,
+    hideEnabledToggle = true,
     defaults = {
-        enabled = true,
-        viewMode = "raid"
+        enabled = true
     }
 }
 
@@ -62,6 +87,39 @@ end
 local function difficulty_rank(name)
     return DIFFICULTY_RANK[name] or 99
 end
+
+local function content_key(name)
+    local value = lower(trim(name))
+    value = string.gsub(value, "%s*%(pve%)%s*$", "")
+    if value == "kaldros depthbreaker" then value = "kaldros" end
+    if value == "lord kazzak" then value = "kazzak" end
+    return string.gsub(value, "[^%w]", "")
+end
+
+local function display_content_name(name)
+    local value = trim(name)
+    value = string.gsub(value, "%s*%([Pp][Vv][Ee]%)%s*$", "")
+    if lower(value) == "kaldros depthbreaker" then return "Kaldros" end
+    if lower(value) == "lord kazzak" then return "Kazzak" end
+    return value
+end
+
+local function copy_catalog(source)
+    local result = {}
+    for _, entry in ipairs(source) do
+        table.insert(result, { key = entry.key, label = entry.label })
+    end
+    return result
+end
+
+local function catalog_keys(catalog)
+    local result = {}
+    for _, entry in ipairs(catalog) do result[entry.key] = true end
+    return result
+end
+
+local SEEDED_RAID_KEYS = catalog_keys(RAID_CATALOG)
+local SEEDED_WORLD_BOSS_KEYS = catalog_keys(WORLD_BOSS_CATALOG)
 
 function module:NormalizeDifficulty(difficultyName, difficultyID)
     local name = trim(difficultyName)
@@ -107,18 +165,6 @@ function module:FormatDuration(seconds)
     return "<1m"
 end
 
-function module:FormatAge(timestamp, currentTime)
-    timestamp = tonumber(timestamp) or 0
-    currentTime = tonumber(currentTime) or now_time()
-    if timestamp <= 0 then return "never" end
-
-    local elapsed = math.max(0, currentTime - timestamp)
-    if elapsed < 60 then return "just now" end
-    if elapsed < 3600 then return tostring(math.floor(elapsed / 60)) .. "m ago" end
-    if elapsed < 86400 then return tostring(math.floor(elapsed / 3600)) .. "h ago" end
-    return tostring(math.floor(elapsed / 86400)) .. "d ago"
-end
-
 function module:ResolveResetAt(currentTime, resetValue)
     currentTime = tonumber(currentTime) or now_time()
     resetValue = tonumber(resetValue)
@@ -154,12 +200,62 @@ function module:GetStore(core)
     local store = global.raidLockouts
     store.schema = STORE_SCHEMA
     if type(store.characters) ~= "table" then store.characters = {} end
+    if type(store.knownInstances) ~= "table" then store.knownInstances = {} end
     return store
 end
 
-function module:GetSettings(core)
-    local db = core and core:GetModuleDB(self.key) or nil
-    return db or self.defaults
+function module:IsWorldBossLockout(lockout)
+    if type(lockout) ~= "table" then return false end
+    local key = content_key(lockout.name)
+    if SEEDED_WORLD_BOSS_KEYS[key] then return true end
+    if SEEDED_RAID_KEYS[key] then return false end
+    if lockout.source == "ascensionLoot" then return true end
+    return string.find(lower(lockout.name), "(pve)", 1, true) ~= nil
+end
+
+function module:RememberKnownContent(store, lockouts)
+    if type(store) ~= "table" or type(store.knownInstances) ~= "table" then return end
+    for _, lockout in ipairs(lockouts or {}) do
+        local key = content_key(lockout.name)
+        if key ~= "" and not SEEDED_RAID_KEYS[key] and not SEEDED_WORLD_BOSS_KEYS[key] then
+            store.knownInstances[key] = {
+                name = display_content_name(lockout.name),
+                category = self:IsWorldBossLockout(lockout) and "worldBoss" or "raid"
+            }
+        end
+    end
+end
+
+function module:GetContentCatalog(core)
+    local raids = copy_catalog(RAID_CATALOG)
+    local worldBosses = copy_catalog(WORLD_BOSS_CATALOG)
+    local store = self:GetStore(core)
+    local discoveredRaids = {}
+    local discoveredWorldBosses = {}
+    local seen = {}
+
+    for _, entry in ipairs(raids) do seen[entry.key] = true end
+    for _, entry in ipairs(worldBosses) do seen[entry.key] = true end
+
+    if store then
+        for _, character in pairs(store.characters) do
+            self:RememberKnownContent(store, character.lockouts)
+        end
+        for key, entry in pairs(store.knownInstances) do
+            if not seen[key] and type(entry) == "table" and trim(entry.name) ~= "" then
+                local target = entry.category == "worldBoss" and discoveredWorldBosses or discoveredRaids
+                table.insert(target, { key = key, label = trim(entry.name) })
+                seen[key] = true
+            end
+        end
+    end
+
+    local sortByLabel = function(a, b) return lower(a.label) < lower(b.label) end
+    table.sort(discoveredRaids, sortByLabel)
+    table.sort(discoveredWorldBosses, sortByLabel)
+    for _, entry in ipairs(discoveredRaids) do table.insert(raids, entry) end
+    for _, entry in ipairs(discoveredWorldBosses) do table.insert(worldBosses, entry) end
+    return raids, worldBosses
 end
 
 function module:GetCurrentCharacter()
@@ -334,6 +430,8 @@ function module:SnapshotCurrentCharacter(core, currentTime)
     currentTime = tonumber(currentTime) or now_time()
     local info = self:GetCurrentCharacter()
     local key = character_key(info.name, info.realm, info.guid)
+    local lockouts = self:CollectCurrentLockouts(currentTime)
+    self:RememberKnownContent(store, lockouts)
     store.characters[key] = {
         name = info.name,
         realm = info.realm,
@@ -342,14 +440,13 @@ function module:SnapshotCurrentCharacter(core, currentTime)
         classToken = info.classToken,
         faction = info.faction,
         lastScan = currentTime,
-        lockouts = self:CollectCurrentLockouts(currentTime)
+        lockouts = lockouts
     }
 
     self.scanPending = false
     self.lastSnapshotAt = currentTime
-    self.statusMessage = "Updated " .. tostring(info.name) .. " " .. self:FormatAge(currentTime, currentTime) .. "."
     self:PruneStore(core, currentTime)
-    self:RefreshReport(core)
+    self:RefreshTable(core)
     return true
 end
 
@@ -362,8 +459,7 @@ function module:RequestSnapshot(core, force)
         and type(api.GetEncounterData) == "function"
 
     if not canRequestStandard and not canRequestAscension then
-        self.statusMessage = "Raid lockout API is unavailable."
-        self:RefreshReport(core)
+        self:RefreshTable(core)
         return false
     end
 
@@ -374,7 +470,6 @@ function module:RequestSnapshot(core, force)
 
     self.lastRequestAt = currentTime
     self.scanPending = true
-    self.statusMessage = "Requesting current character lockouts..."
     local standardOK = false
     local ascensionOK = false
     if canRequestStandard then standardOK = pcall(RequestRaidInfo) end
@@ -386,20 +481,9 @@ function module:RequestSnapshot(core, force)
     local requested = standardOK or ascensionOK
     if not requested then
         self.scanPending = false
-        self.statusMessage = "Could not request raid lockouts."
     end
-    self:RefreshReport(core)
+    self:RefreshTable(core)
     return requested
-end
-
-function module:ForgetCurrentCharacter(core)
-    local store = self:GetStore(core)
-    if not store then return end
-    local info = self:GetCurrentCharacter()
-    local key = character_key(info.name, info.realm, info.guid)
-    store.characters[key] = nil
-    self.statusMessage = "Forgot stored data for " .. tostring(info.name) .. ". Refresh to add it again."
-    self:RefreshReport(core)
 end
 
 function module:GetVisibleCharacters(core, currentTime, currentRealmOnly)
@@ -421,170 +505,225 @@ function module:GetVisibleCharacters(core, currentTime, currentRealmOnly)
     return characters
 end
 
-function module:FormatLockoutEntry(character, lockout, currentTime, includeRealm)
-    local name = tostring(character.name or "Unknown")
-    if includeRealm then name = name .. "-" .. tostring(character.realm or "UnknownRealm") end
-
-    local remaining, resetKnown = self:GetRemaining(character, lockout, currentTime)
-    local details = {}
-    if resetKnown then
-        local timer = self:FormatDuration(remaining)
-        if remaining <= 0 then timer = "|cff777777" .. timer .. "|r" end
-        table.insert(details, timer)
+local function build_model_rows(catalog, difficulties, category)
+    local rows = {}
+    for _, content in ipairs(catalog) do
+        local row = {
+            key = content.key,
+            label = content.label,
+            category = category,
+            cells = {},
+            minimumResetAt = nil,
+            maximumResetAt = nil
+        }
+        for _, difficulty in ipairs(difficulties) do
+            row.cells[difficulty] = { byName = {}, entries = {} }
+        end
+        table.insert(rows, row)
     end
-    if lockout.extended then table.insert(details, "extended") end
-    if table.getn(details) > 0 then return name .. " (" .. table.concat(details, ", ") .. ")" end
-    return name
+    return rows
 end
 
-function module:BuildRaidView(lines, characters, currentTime, showExpired, includeRealm)
-    local raids = {}
-
-    for _, character in ipairs(characters) do
-        for _, lockout in ipairs(character.lockouts or {}) do
-            local remaining, resetKnown = self:GetRemaining(character, lockout, currentTime)
-            if not resetKnown or showExpired or remaining > 0 then
-                local raidName = trim(lockout.name)
-                local difficulty = trim(lockout.difficultyKey)
-                if raidName ~= "" then
-                    raids[raidName] = raids[raidName] or {}
-                    raids[raidName][difficulty] = raids[raidName][difficulty] or {}
-                    table.insert(raids[raidName][difficulty], { character = character, lockout = lockout })
-                end
-            end
-        end
-    end
-
-    local raidNames = {}
-    for raidName in pairs(raids) do table.insert(raidNames, raidName) end
-    table.sort(raidNames, function(a, b) return lower(a) < lower(b) end)
-
-    if table.getn(raidNames) == 0 then
-        table.insert(lines, "|cffaaaaaaNo saved raid lockouts in this view.|r")
-        return
-    end
-
-    for _, raidName in ipairs(raidNames) do
-        table.insert(lines, "|cffffd100" .. raidName .. "|r")
-        local difficulties = raids[raidName]
-
-        for _, difficulty in ipairs(DIFFICULTY_ORDER) do
-            local entries = difficulties[difficulty] or {}
-            table.sort(entries, function(a, b) return lower(a.character.name) < lower(b.character.name) end)
-            local names = {}
-            for _, entry in ipairs(entries) do
-                table.insert(names, self:FormatLockoutEntry(entry.character, entry.lockout, currentTime, includeRealm))
-            end
-            local color = DIFFICULTY_COLOR[difficulty] or "|cffffffff"
-            table.insert(lines, "  " .. color .. difficulty .. ":|r " .. (table.getn(names) > 0 and table.concat(names, ", ") or "|cff666666-|r"))
-        end
-
-        local extras = {}
-        for difficulty in pairs(difficulties) do
-            if not DIFFICULTY_RANK[difficulty] then table.insert(extras, difficulty) end
-        end
-        table.sort(extras, function(a, b) return lower(a) < lower(b) end)
-        for _, difficulty in ipairs(extras) do
-            local names = {}
-            for _, entry in ipairs(difficulties[difficulty]) do
-                table.insert(names, self:FormatLockoutEntry(entry.character, entry.lockout, currentTime, includeRealm))
-            end
-            table.insert(lines, "  |cffffffff" .. difficulty .. ":|r " .. table.concat(names, ", "))
-        end
-        table.insert(lines, "")
-    end
-end
-
-function module:BuildCharacterView(lines, characters, currentTime, showExpired, includeRealm)
-    if table.getn(characters) == 0 then
-        table.insert(lines, "|cffaaaaaaNo characters have been scanned in this view.|r")
-        return
-    end
-
-    for _, character in ipairs(characters) do
-        local heading = tostring(character.name or "Unknown")
-        if includeRealm then heading = heading .. "-" .. tostring(character.realm or "UnknownRealm") end
-        heading = heading .. " |cff888888(scanned " .. self:FormatAge(character.lastScan, currentTime) .. ")|r"
-        table.insert(lines, "|cffffd100" .. heading .. "|r")
-
-        local visible = 0
-        for _, lockout in ipairs(character.lockouts or {}) do
-            local remaining, resetKnown = self:GetRemaining(character, lockout, currentTime)
-            if not resetKnown or showExpired or remaining > 0 then
-                visible = visible + 1
-                local difficulty = trim(lockout.difficultyKey)
-                local color = DIFFICULTY_COLOR[difficulty] or "|cffffffff"
-                local extended = lockout.extended and " - extended" or ""
-                local timer = ""
-                if resetKnown then
-                    local timerText = self:FormatDuration(remaining)
-                    if remaining <= 0 then timerText = "|cff777777" .. timerText .. "|r" end
-                    timer = " - " .. timerText
-                end
-                table.insert(lines, "  " .. tostring(lockout.name or "Unknown Raid") .. " - " .. color .. difficulty .. "|r" .. timer .. extended)
-            end
-        end
-
-        if visible == 0 then table.insert(lines, "  |cff666666No saved raid lockouts.|r") end
-        table.insert(lines, "")
-    end
-end
-
-function module:BuildReport(core, currentTime)
+function module:BuildTableModel(core, currentTime)
     currentTime = tonumber(currentTime) or now_time()
-    local db = self:GetSettings(core)
-    local characters = self:GetVisibleCharacters(core, currentTime, true)
-    local lines = {}
+    local raidCatalog, worldBossCatalog = self:GetContentCatalog(core)
+    local model = {
+        raids = build_model_rows(raidCatalog, RAID_DIFFICULTIES, "raid"),
+        worldBosses = build_model_rows(worldBossCatalog, WORLD_BOSS_DIFFICULTIES, "worldBoss")
+    }
+    local rowsByKey = {}
 
-    table.insert(lines, "|cffaaaaaaOffline characters show their last collected snapshot; log into them to refresh it.|r")
-    table.insert(lines, "")
+    for _, row in ipairs(model.raids) do rowsByKey[row.key] = row end
+    for _, row in ipairs(model.worldBosses) do rowsByKey[row.key] = row end
 
-    if db.viewMode == "character" then
-        self:BuildCharacterView(lines, characters, currentTime, false, false)
-    else
-        self:BuildRaidView(lines, characters, currentTime, false, false)
-    end
-
-    table.insert(lines, "|cffffd100Known characters|r")
-    if table.getn(characters) == 0 then
-        table.insert(lines, "  |cff666666None yet. Log into a character with tracking enabled.|r")
-    else
-        for _, character in ipairs(characters) do
-            local active = 0
-            for _, lockout in ipairs(character.lockouts or {}) do
+    for _, character in ipairs(self:GetVisibleCharacters(core, currentTime, true)) do
+        for _, lockout in ipairs(character.lockouts or {}) do
+            local row = rowsByKey[content_key(lockout.name)]
+            local difficulty = trim(lockout.difficultyKey)
+            local cell = row and row.cells[difficulty] or nil
+            if cell then
                 local remaining, resetKnown = self:GetRemaining(character, lockout, currentTime)
-                if not resetKnown or remaining > 0 then active = active + 1 end
+                local resettable = not resetKnown or remaining <= 0
+                local name = tostring(character.name or "Unknown")
+                local nameKey = lower(name)
+                local existing = cell.byName[nameKey]
+                if not existing or (existing.resettable and not resettable) then
+                    cell.byName[nameKey] = { name = name, resettable = resettable }
+                end
+
+                if resetKnown and remaining > 0 then
+                    local resetAt = tonumber(lockout.resetAt)
+                    if resetAt then
+                        row.minimumResetAt = math.min(row.minimumResetAt or resetAt, resetAt)
+                        row.maximumResetAt = math.max(row.maximumResetAt or resetAt, resetAt)
+                    end
+                end
             end
-            local name = tostring(character.name or "Unknown")
-            local age = self:FormatAge(character.lastScan, currentTime)
-            if currentTime - (tonumber(character.lastScan) or 0) > STALE_SECONDS then age = "|cffff6666" .. age .. " (stale)|r" end
-            table.insert(lines, "  " .. name .. " - " .. tostring(active) .. " active - scanned " .. age)
         end
     end
 
-    return table.concat(lines, "\n"), table.getn(lines)
+    for _, section in ipairs({ model.raids, model.worldBosses }) do
+        for _, row in ipairs(section) do
+            if row.maximumResetAt and row.minimumResetAt and row.maximumResetAt - row.minimumResetAt <= 300 then
+                row.resetAt = row.maximumResetAt
+            end
+            for _, cell in pairs(row.cells) do
+                for _, entry in pairs(cell.byName) do table.insert(cell.entries, entry) end
+                table.sort(cell.entries, function(a, b) return lower(a.name) < lower(b.name) end)
+            end
+        end
+    end
+
+    return model
 end
 
-function module:RefreshReport(core)
-    if not self.reportLabel then return end
-    local report, lineCount = self:BuildReport(core, now_time())
-    self.reportLabel:SetText(report)
+function module:FormatCellText(entries, difficulty)
+    local lines = {}
+    for _, entry in ipairs(entries or {}) do
+        local color = entry.resettable and RESETTABLE_COLOR or (DIFFICULTY_COLOR[difficulty] or "|cffffffff")
+        table.insert(lines, color .. tostring(entry.name or "Unknown") .. "|r")
+    end
+    if table.getn(lines) == 0 then return "|cff555555-|r" end
+    return table.concat(lines, "\n")
+end
 
-    local height = math.max(120, (tonumber(lineCount) or 1) * 16)
-    self.reportLabel:SetHeight(height)
-    if self.settingsPage and self.reportY then
-        self.settingsPage:SetHeight(math.max(520, math.abs(self.reportY) + height + 50))
+function module:FormatRowLabel(row, currentTime)
+    local label = tostring(row and row.label or "Unknown")
+    local resetAt = tonumber(row and row.resetAt)
+    currentTime = tonumber(currentTime) or now_time()
+    if resetAt and resetAt > currentTime then
+        label = label .. " |cffaaaaaa(" .. self:FormatDuration(resetAt - currentTime) .. ")|r"
+    end
+    return label
+end
+
+local function set_frame_background(frame, alpha)
+    if not frame.background then
+        frame.background = frame:CreateTexture(nil, "BACKGROUND")
+        frame.background:SetAllPoints(frame)
+    end
+    frame.background:SetTexture(1, 1, 1, alpha or 0.04)
+end
+
+function module:CreateSectionControls(panel, sectionKey, title, difficulties)
+    self.tableSections = self.tableSections or {}
+    local section = self.tableSections[sectionKey]
+    if section then return section end
+
+    section = {
+        title = title,
+        difficulties = difficulties,
+        rows = {}
+    }
+    section.header = CreateFrame("Frame", nil, panel)
+    section.header:SetWidth(TABLE_WIDTH)
+    section.header:SetHeight(42)
+    section.titleLabel = section.header:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    section.titleLabel:SetPoint("TOPLEFT", section.header, "TOPLEFT", 0, 0)
+    section.titleLabel:SetText(title)
+
+    section.nameHeader = section.header:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    section.nameHeader:SetPoint("TOPLEFT", section.header, "TOPLEFT", 6, -22)
+    section.nameHeader:SetWidth(TABLE_LABEL_WIDTH - 12)
+    section.nameHeader:SetJustifyH("LEFT")
+    section.nameHeader:SetText(sectionKey == "raids" and "Raid" or "World boss")
+
+    local cellWidth = (TABLE_WIDTH - TABLE_LABEL_WIDTH) / table.getn(difficulties)
+    section.cellWidth = cellWidth
+    section.difficultyHeaders = {}
+    for index, difficulty in ipairs(difficulties) do
+        local label = section.header:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+        label:SetPoint("TOPLEFT", section.header, "TOPLEFT", TABLE_LABEL_WIDTH + ((index - 1) * cellWidth), -22)
+        label:SetWidth(cellWidth)
+        label:SetJustifyH("CENTER")
+        label:SetText((DIFFICULTY_COLOR[difficulty] or "|cffffffff") .. difficulty .. "|r")
+        section.difficultyHeaders[difficulty] = label
     end
 
-    if self.statusLabel then
-        self.statusLabel:SetText(self.statusMessage or "Waiting for the current character scan.")
+    self.tableSections[sectionKey] = section
+    return section
+end
+
+function module:EnsureRowControls(panel, section, row)
+    local controls = section.rows[row.key]
+    if controls then return controls end
+
+    controls = { cells = {} }
+    controls.frame = CreateFrame("Frame", nil, panel)
+    controls.frame:SetWidth(TABLE_WIDTH)
+    controls.label = controls.frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    controls.label:SetPoint("TOPLEFT", controls.frame, "TOPLEFT", 6, -5)
+    controls.label:SetWidth(TABLE_LABEL_WIDTH - 12)
+    controls.label:SetJustifyH("LEFT")
+    controls.label:SetJustifyV("TOP")
+
+    for index, difficulty in ipairs(section.difficulties) do
+        local label = controls.frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+        label:SetPoint("TOPLEFT", controls.frame, "TOPLEFT", TABLE_LABEL_WIDTH + ((index - 1) * section.cellWidth) + 6, -5)
+        label:SetWidth(section.cellWidth - 12)
+        label:SetJustifyH("LEFT")
+        label:SetJustifyV("TOP")
+        controls.cells[difficulty] = label
     end
 
-    local controls = core.optionControls and core.optionControls[self.key]
-    local db = self:GetSettings(core)
-    if controls and controls.viewMode then
-        controls.viewMode:SetText(db.viewMode == "character" and "View: by character" or "View: by raid")
+    section.rows[row.key] = controls
+    return controls
+end
+
+function module:RefreshTableSection(panel, section, rows, currentTime, y)
+    section.header:ClearAllPoints()
+    section.header:SetPoint("TOPLEFT", panel, "TOPLEFT", 12, y)
+    section.header:Show()
+    y = y - 44
+
+    local visibleRows = {}
+    for index, row in ipairs(rows) do
+        local controls = self:EnsureRowControls(panel, section, row)
+        visibleRows[row.key] = true
+        local maxLines = 1
+        for _, difficulty in ipairs(section.difficulties) do
+            maxLines = math.max(maxLines, table.getn(row.cells[difficulty].entries))
+        end
+        local rowHeight = math.max(24, (maxLines * TABLE_LINE_HEIGHT) + 10)
+
+        controls.frame:ClearAllPoints()
+        controls.frame:SetPoint("TOPLEFT", panel, "TOPLEFT", 12, y)
+        controls.frame:SetHeight(rowHeight)
+        set_frame_background(controls.frame, index % 2 == 0 and 0.055 or 0.025)
+        controls.label:SetHeight(rowHeight - 8)
+        controls.label:SetText(self:FormatRowLabel(row, currentTime))
+        for _, difficulty in ipairs(section.difficulties) do
+            controls.cells[difficulty]:SetHeight(rowHeight - 8)
+            controls.cells[difficulty]:SetText(self:FormatCellText(row.cells[difficulty].entries, difficulty))
+        end
+        controls.frame:Show()
+        y = y - rowHeight
     end
+
+    for key, controls in pairs(section.rows) do
+        if not visibleRows[key] then controls.frame:Hide() end
+    end
+    return y - 14
+end
+
+function module:RefreshTable(core)
+    if not self.settingsPage or not self.tableTopY then return end
+    local currentTime = now_time()
+    local model = self:BuildTableModel(core, currentTime)
+    local raidSection = self:CreateSectionControls(self.settingsPage, "raids", "Raids", RAID_DIFFICULTIES)
+    local worldBossSection = self:CreateSectionControls(self.settingsPage, "worldBosses", "World Bosses", WORLD_BOSS_DIFFICULTIES)
+    local y = self.tableTopY
+
+    y = self:RefreshTableSection(self.settingsPage, raidSection, model.raids, currentTime, y)
+    y = self:RefreshTableSection(self.settingsPage, worldBossSection, model.worldBosses, currentTime, y)
+
+    if self.legendLabel then
+        self.legendLabel:ClearAllPoints()
+        self.legendLabel:SetPoint("TOPLEFT", self.settingsPage, "TOPLEFT", 12, y)
+        self.legendLabel:SetText("|cff777777Grey names have an expired lockout available for manual reset.|r")
+        y = y - 24
+    end
+    self.settingsPage:SetHeight(math.max(520, math.abs(y) + 28))
 end
 
 function module:OnEvent(core, event, ...)
@@ -621,55 +760,26 @@ function module:OnDisable(core)
     if self.frame then
         for _, event in ipairs(EVENTS) do safe_unregister(self.frame, event) end
     end
-    self.statusMessage = "Tracking is disabled; stored snapshots remain available."
-    self:RefreshReport(core)
+    self:RefreshTable(core)
 end
 
 function module:BuildOptions(core, panel, y)
-    core.optionControls[self.key] = core.optionControls[self.key] or {}
-    local controls = core.optionControls[self.key]
-
-    controls.viewMode = core:CreateOptionButton(panel, "MinnTinkers_RaidLockouts_View", "View: by raid", 42, y, 160, 24, function()
-        local settings = core:GetModuleDB(module.key)
-        settings.viewMode = settings.viewMode == "character" and "raid" or "character"
-        module:RefreshReport(core)
-    end)
-
-    controls.refresh = core:CreateOptionButton(panel, "MinnTinkers_RaidLockouts_Refresh", "Refresh this character", 212, y, 170, 24, function()
-        if module.enabled then module:RequestSnapshot(core, true)
-        else core:Print("Enable Raid lockout tracker before refreshing.") end
-    end)
-
-    controls.forget = core:CreateOptionButton(panel, "MinnTinkers_RaidLockouts_Forget", "Forget this character", 392, y, 160, 24, function()
-        module:ForgetCurrentCharacter(core)
-    end)
-    y = y - 34
-
-    self.statusLabel = core:CreateText(panel, "Waiting for the current character scan.", 42, y, 520, "GameFontHighlightSmall")
-    y = y - 30
-    core:CreateText(panel, "Saved raid lockouts", 42, y, 520, "GameFontNormal")
-    y = y - 24
-
-    self.reportLabel = core:CreateText(panel, "", 42, y, 520, "GameFontHighlightSmall")
-    self.reportLabel:SetJustifyV("TOP")
-    self.reportY = y
     self.settingsPage = panel
+    self.tableTopY = y
+    self.tableSections = {}
+    self.legendLabel = core:CreateText(panel, "", 12, y, TABLE_WIDTH, "GameFontHighlightSmall")
 
     panel:SetScript("OnShow", function()
-        module:RefreshReport(core)
-        if module.enabled then module:RequestSnapshot(core, false) end
+        module:RefreshTable(core)
+        module:RequestSnapshot(core, false)
     end)
 
-    self:RefreshReport(core)
-    return y - 360
+    self:RefreshTable(core)
+    return y - 450
 end
 
 function module:RefreshOptions(core)
-    local controls = core.optionControls[self.key]
-    local db = self:GetSettings(core)
-    if not controls or not db then return end
-
-    self:RefreshReport(core)
+    self:RefreshTable(core)
 end
 
 MT:RegisterModule("RaidLockouts", module)

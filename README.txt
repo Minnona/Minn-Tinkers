@@ -3,7 +3,7 @@ Minn Tinkers
 
 Personal WoW 3.3.5a quality-of-life addon.
 
-Version: 0.1.46
+Version: 0.1.47
 License: GPL-3.0
 
 Install:
@@ -52,11 +52,11 @@ Raid Rolls:
 - Supports flexible safe starts like roll [item] MS, roll 1-100 [item], and [item] x2 roll MS.
 
 Raid Lockouts:
-- Collects the current character's saved raids when that character is logged in.
-- Shares Normal, Heroic, Mythic, Ascended, and unknown custom lockouts across characters on the account.
-- Supports by-raid and by-character views, current-realm-only display, manual refresh, and forgetting the current character.
-- Offline data is labeled with its last scan time because offline characters cannot be queried directly.
-- If Ascension reports no reset duration for a locked raid, the lockout remains visible without a timer.
+- Automatically collects the current character's saved raids and world bosses when the character is logged in or the page opens.
+- Shows current-realm characters in compact raid and world-boss tables with difficulty columns.
+- Character names are colored by difficulty and stacked vertically inside each cell.
+- Expired binds that Ascension allows you to reset manually remain visible as grey character names.
+- Common server reset durations appear once beside the raid or world-boss name.
 - Ascension standalone world-boss loot locks are merged with standard raid saves when the normal API omits them.
 
 PvP:
@@ -89,6 +89,11 @@ Most other controls are handled through the settings UI.
 Advanced/dev actions are under /minn debug.
 
 Changelog:
+
+0.1.47
+- Replaced the Raid Lockouts text report with compact raid and world-boss difficulty tables.
+- Added the known Ascension world-boss catalog, vertical character lists, row-level reset timers, and grey resettable binds.
+- Made lockout tracking automatic and removed the tracker toggle, view, refresh, forget, and status controls.
 
 0.1.46
 - Added Ascension standalone world-boss lockouts that are omitted by the standard saved-instance API.

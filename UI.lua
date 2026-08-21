@@ -164,24 +164,24 @@ function MT:BuildModulePage(page, category)
             local moduleDB = self:GetModuleDB(key)
             local allowed = self:IsModuleAllowedForCharacter(key)
 
-            local checkbox = self:CreateCheckbox(
-                page,
-                "MinnTinkers_Module_" .. key,
-                module.name or key,
-                module.name or key,
-                module.desc or "",
-                16,
-                y,
-                moduleDB and moduleDB.enabled,
-                function(checked)
-                    MT:SetModuleEnabled(key, checked)
-                end
-            )
-
             self.optionControls[key] = self.optionControls[key] or {}
-            self.optionControls[key].enabled = checkbox
-
-            y = y - 30
+            if not module.hideEnabledToggle then
+                local checkbox = self:CreateCheckbox(
+                    page,
+                    "MinnTinkers_Module_" .. key,
+                    module.name or key,
+                    module.name or key,
+                    module.desc or "",
+                    16,
+                    y,
+                    moduleDB and moduleDB.enabled,
+                    function(checked)
+                        MT:SetModuleEnabled(key, checked)
+                    end
+                )
+                self.optionControls[key].enabled = checkbox
+                y = y - 30
+            end
 
             if module.BuildOptions then
                 local newY = module:BuildOptions(self, page, y)

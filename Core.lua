@@ -5,7 +5,7 @@ _G.MinnTinkers = MT
 
 MT.addonName = ADDON_NAME or "MinnTinkers"
 MT.displayName = "Minn Tinkers"
-MT.version = "0.1.46"
+MT.version = "0.1.47"
 MT.modules = {}
 MT.moduleOrder = {}
 MT.globalDB = nil
@@ -180,6 +180,10 @@ function MT:InitDB()
             self.db.modules[key].enabled = false
         end
 
+        if module.alwaysEnabled then
+            self.db.modules[key].enabled = true
+        end
+
         -- Class-restricted modules are reset once into sane per-character defaults.
         -- This keeps class tools on their intended characters.
         if module.characterRule and (not existed or previousProfileDefaultVersion < self.profileDefaultVersion) then
@@ -192,6 +196,8 @@ function MT:InitDB()
 end
 
 function MT:IsModuleEnabled(key)
+    local module = self.modules[key]
+    if module and module.alwaysEnabled then return true end
     local db = self:GetModuleDB(key)
     return db and db.enabled and true or false
 end
@@ -235,6 +241,13 @@ function MT:SetModuleEnabled(key, enabled)
     local db = self:GetModuleDB(key)
 
     if not module or not db then return end
+
+    if module.alwaysEnabled then
+        db.enabled = true
+        self:EnableModule(key)
+        if self.RefreshOptions then self:RefreshOptions() end
+        return
+    end
 
     enabled = enabled and true or false
 

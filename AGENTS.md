@@ -319,7 +319,7 @@ Store the exact channel names removed from each chat window in the per-character
 
 Own tab: **Raid Lockouts**, between Raid Rolls and PvP.
 
-Stores account-wide character snapshots under `MinnTinkersDB.raidLockouts`. Scans through `RequestRaidInfo` / `UPDATE_INSTANCE_INFO` plus Ascension's `C_LootLockout.QueryInstanceBinds` / `QUERY_INSTANCE_BINDS_RESULT`; do not add permanent polling. Merge standalone custom loot locks resolved through `GetEncounterData("player", encounterID)` with standard saves, deduplicate by raid name and difficulty, and never expand ordinary multi-boss raid loot locks into individual boss rows. The report is always current-realm-only and hides expired entries. Use the API-provided difficulty name first, preserve unknown custom difficulties, show offline scan age, and never imply that an offline character was queried live. Ascension may return a zero reset duration for a visibly locked raid; retain those lockouts without a timer instead of treating them as immediately expired.
+Stores account-wide character snapshots under `MinnTinkersDB.raidLockouts`. The module is always enabled and has no tracker toggle or manual view/refresh/forget controls. Refresh when its settings page opens and through `RequestRaidInfo` / `UPDATE_INSTANCE_INFO` plus Ascension's `C_LootLockout.QueryInstanceBinds` / `QUERY_INSTANCE_BINDS_RESULT`; do not add permanent polling. Merge standalone custom loot locks resolved through `GetEncounterData("player", encounterID)` with standard saves, deduplicate by raid name and difficulty, and never expand ordinary multi-boss raid loot locks into individual boss rows. Display current-realm characters in compact Raid and World Boss tables, stack character names vertically, color active names by difficulty, show resettable expired binds in grey, and put a common active reset duration beside the content name. Use the standard API difficulty name first and the verified Ascension loot-lock difficulty IDs for custom locks. Seed known raids/world bosses, remember newly discovered content account-wide, and never imply that an offline character was queried live.
 
 ### BattlegroundsPvP.lua
 
@@ -424,7 +424,7 @@ Future polish target: avoid permanent `OnUpdate`; only run while pending, visibl
 Current expected version after latest handoff:
 
 ```text
-0.1.45
+0.1.47
 ```
 
 When changing files, bump TOC version only when it is a real user-facing patch. Keep README/README.txt in sync if doing a release-style update.
@@ -463,8 +463,9 @@ ZG green/blue Need override defaults ON
 Raid Rolls tab keeps Supported starts note only
 Raid roll one item announces only one winner
 Raid roll 3x item announces only three winners, one per line
-Raid Lockouts shows Normal/Heroic/Mythic/Ascended saves across scanned characters
-Raid Lockouts labels offline snapshots with their last scan age
+Raid Lockouts shows compact Raid and World Boss tables across scanned current-realm characters
+Raid Lockouts colors active names by difficulty and resettable expired binds grey
+Raid Lockouts refreshes automatically when its settings page opens
 Chat suppression restores only the selected numbered channels to their original windows after raids, dungeons, and battlegrounds
 Chat suppression leaves arenas and non-channel message groups unchanged
 Auto-mark Roles restores remembered Star/Moon players after Mythic+ activation
