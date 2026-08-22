@@ -11,7 +11,6 @@ The release archive contains the correctly named `MinnTinkers` addon folder.
 ## Features
 
 Open the settings with `/minn` or through **Interface → AddOns → Minn Tinkers**.
-When ElvUI is already installed, Minn Tinkers uses its checkbox skin automatically without requiring additional libraries.
 
 ### Universal
 
