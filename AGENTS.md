@@ -112,6 +112,8 @@ Keep UI compact:
 - align option buttons consistently
 ```
 
+When ElvUI is present, checkbox creation calls its existing `Skins:HandleCheckBox()` API directly. Do not bundle Ace libraries or require ElvUI; retain the vanilla checkbox fallback when its skin API is unavailable.
+
 Do not reintroduce these deleted patch-layer files:
 
 ```text
@@ -426,7 +428,7 @@ Future polish target: avoid permanent `OnUpdate`; only run while pending, visibl
 Current expected version after latest handoff:
 
 ```text
-0.1.53
+0.1.54
 ```
 
 When changing files, bump TOC version only when it is a real user-facing patch. Keep README/README.txt in sync if doing a release-style update.

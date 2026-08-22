@@ -79,10 +79,25 @@ function MT:StripBlizzardButtonSkin(button)
     HideNamedButtonRegions(button)
 end
 
-function MT:IsElvUILoaded()
-    if _G.ElvUI or _G.E then
-        return true
+function MT:GetElvUISkins()
+    local elvUI = _G.ElvUI
+    local engine = nil
+
+    if type(elvUI) == "table" then
+        engine = elvUI[1] or elvUI
+    elseif type(_G.E) == "table" then
+        engine = _G.E
     end
+
+    if not engine or type(engine.GetModule) ~= "function" then return nil end
+
+    local ok, skins = pcall(engine.GetModule, engine, "Skins", true)
+    if not ok or type(skins) ~= "table" or type(skins.HandleCheckBox) ~= "function" then return nil end
+    return skins
+end
+
+function MT:IsElvUILoaded()
+    if self:GetElvUISkins() then return true end
 
     if IsAddOnLoaded then
         local loaded = IsAddOnLoaded("ElvUI")
@@ -172,15 +187,71 @@ function MT:SkinButton(button)
     end)
 end
 
+function MT:RefreshElvUICheckBoxState(checkbox)
+    if not checkbox or not checkbox.minnElvUISkinned then return end
+    if not checkbox.GetChecked then return end
+
+    local checkedTexture = checkbox.minnElvUICheckedTexture
+    if not checkedTexture and checkbox.GetCheckedTexture then
+        checkedTexture = checkbox:GetCheckedTexture()
+    end
+    if not checkedTexture then return end
+
+    if checkbox:GetChecked() then
+        if checkedTexture.Show then checkedTexture:Show() end
+    else
+        if checkedTexture.Hide then checkedTexture:Hide() end
+    end
+end
+
 function MT:SkinCheckBox(checkbox)
     if not checkbox then return end
 
     local colors = self:GetSkinColors()
     local name = checkbox:GetName()
 
-    HideTexture(name and _G[name .. "Middle"])
-    HideTexture(name and _G[name .. "Left"])
-    HideTexture(name and _G[name .. "Right"])
+    local elvUISkins = self:GetElvUISkins()
+    if elvUISkins then
+        local skinned = pcall(elvUISkins.HandleCheckBox, elvUISkins, checkbox)
+        if skinned then
+            checkbox.minnElvUISkinned = true
+            local checkedTexture = checkbox.GetCheckedTexture and checkbox:GetCheckedTexture()
+            if checkbox.backdrop and checkedTexture then
+                -- Ascension's 3.3.5 client clears a CheckButton's checked-texture
+                -- lookup when that texture is reparented. Keep our own reference so
+                -- clicks and SetChecked calls can still show or hide the visible layer.
+                checkbox.minnElvUICheckedTexture = checkedTexture
+                if checkedTexture.SetParent then
+                    pcall(checkedTexture.SetParent, checkedTexture, checkbox.backdrop)
+                end
+                if checkedTexture.ClearAllPoints and checkedTexture.SetPoint then
+                    checkedTexture:ClearAllPoints()
+                    checkedTexture:SetPoint("TOPLEFT", checkbox.backdrop, "TOPLEFT", 1, -1)
+                    checkedTexture:SetPoint("BOTTOMRIGHT", checkbox.backdrop, "BOTTOMRIGHT", -1, 1)
+                end
+            end
+            if not checkbox.minnElvUIStateHooked then
+                if checkbox.HookScript then
+                    checkbox:HookScript("OnClick", function(control)
+                        MT:RefreshElvUICheckBoxState(control)
+                    end)
+                end
+                if hooksecurefunc and checkbox.SetChecked then
+                    hooksecurefunc(checkbox, "SetChecked", function(control)
+                        MT:RefreshElvUICheckBoxState(control)
+                    end)
+                end
+                checkbox.minnElvUIStateHooked = true
+            end
+            self:RefreshElvUICheckBoxState(checkbox)
+        end
+    end
+
+    if not checkbox.minnElvUISkinned then
+        HideTexture(name and _G[name .. "Middle"])
+        HideTexture(name and _G[name .. "Left"])
+        HideTexture(name and _G[name .. "Right"])
+    end
 
     local text = name and _G[name .. "Text"]
     if text then

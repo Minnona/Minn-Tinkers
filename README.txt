@@ -3,7 +3,7 @@ Minn Tinkers
 
 Personal WoW 3.3.5a quality-of-life addon.
 
-Version: 0.1.53
+Version: 0.1.54
 License: GPL-3.0
 
 Install:
@@ -18,6 +18,7 @@ Settings:
 - Raid lockout snapshots are shared across characters through MinnTinkersDB.
 - Specs are not used; class tools are separated by class tabs only.
 - The addon uses native Interface > AddOns categories.
+- ElvUI checkbox styling is used automatically when available; no additional libraries are required.
 - /minn and the minimap button reopen the last Minn Tinkers tab used by that character.
 - Expand Minn Tinkers with the + button to see:
   - Universal
@@ -92,6 +93,10 @@ Most other controls are handled through the settings UI.
 Advanced/dev actions are under /minn debug.
 
 Changelog:
+
+0.1.54
+- Added automatic ElvUI checkbox styling when ElvUI is already installed.
+- Uses ElvUI's existing skin API directly and keeps the current vanilla fallback without adding dependencies.
 
 0.1.53
 - Added a default-off Universal option to skip BoP loot confirmations inside dungeons and raids.
