@@ -59,6 +59,7 @@ Raid Lockouts:
 - Character names are colored by difficulty and stacked vertically inside each cell.
 - Expired binds that Ascension allows you to reset manually remain visible as grey character names.
 - Click the logged-in character's name to open Ascension's confirmation for resetting that specific saved ID.
+- Active world-boss IDs can also be reset for BoE reruns; personal loot stays locked until its timer expires.
 - Common server reset durations appear once beside the raid or world-boss name.
 - Ascension standalone world-boss loot locks are merged with standard raid saves when the normal API omits them.
 - Hidden per-boss loot timers fill in missing raid reset durations without adding individual boss rows.

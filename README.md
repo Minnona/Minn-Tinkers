@@ -39,6 +39,7 @@ When ElvUI is already installed, Minn Tinkers uses its checkbox skin automatical
 - Track raid and world-boss lockouts across characters on the current realm
 - Show difficulty and reset timers in a compact account-wide table
 - Click the logged-in character's name to reset an available saved ID
+- Reset active world-boss IDs for BoE reruns while personal loot remains locked
 
 ![Raid Lockouts table](docs/images/raid-lockouts.png)
 

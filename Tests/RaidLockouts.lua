@@ -61,7 +61,8 @@ local mapNames = {
     [249] = "Zul'Gurub",
     [409] = "Molten Core",
     [777] = "Snowgrave (PvE)",
-    [891] = "Kaldros Depthbreaker (PvE)"
+    -- Deliberately differs from the loot-lock name to verify map-ID fallback.
+    [891] = "Kaldros Arena"
 }
 GetMapName = function(mapID) return mapNames[mapID] end
 C_Instance = {
@@ -281,8 +282,12 @@ assert(zulGurub.resetAt == currentTime + 80000, "partial Zul'Gurub reset was not
 assert(kaldrosRow and kaldrosRow.label == "Kaldros", "Kaldros was not normalized to its compact table label")
 local kaldrosEntry = find_entry(kaldrosRow.cells.Heroic.entries, "Testchar")
 assert(kaldrosEntry, "Kaldros was not placed in the Heroic world-boss column")
-assert(kaldrosEntry.resetTarget and kaldrosEntry.resetTarget.mapID == 891 and kaldrosEntry.resetTarget.difficultyID == 2, "Kaldros was not linked to its Heroic reset target")
+assert(not kaldrosEntry.resettable, "active Kaldros loot timer was treated as expired")
+assert(kaldrosEntry.resetTarget and kaldrosEntry.resetTarget.mapID == 891 and kaldrosEntry.resetTarget.difficultyID == 2, "active Kaldros was not linked to its Heroic reset target by map and difficulty")
 assert(kaldrosRow.resetAt == currentTime + 438663, "world-boss reset was not moved to its row")
+shownPopup = nil
+assert(captured:ShowResetConfirmation(core, kaldrosEntry.resetTarget), "active world-boss saved ID could not open its reset confirmation")
+assert(shownPopup and shownPopup.data[1] == 891 and shownPopup.data[2] == 2, "active world-boss reset used the wrong map or difficulty")
 
 lootLockouts[891] = nil
 captured:OnEvent(core, "QUERY_INSTANCE_BINDS_RESULT", 3, true, "QUERY_INSTANCE_BINDS_OK")

@@ -101,6 +101,10 @@ local function content_difficulty_key(name, difficulty)
     return content_key(name) .. "\031" .. lower(trim(difficulty))
 end
 
+local function map_difficulty_key(mapID, difficultyID)
+    return tostring(tonumber(mapID) or 0) .. "\031" .. tostring(tonumber(difficultyID) or 0)
+end
+
 local function display_content_name(name)
     local value = trim(name)
     value = string.gsub(value, "%s*%([Pp][Vv][Ee]%)%s*$", "")
@@ -289,7 +293,7 @@ function module:IsCurrentCharacter(character, current)
 end
 
 function module:GetResetTargets()
-    local targets = {}
+    local targets = { byMapDifficulty = {} }
     local api = C_Instance
     if type(api) ~= "table" or type(api.GetSavedMapAndDifficulty) ~= "function" then return targets end
 
@@ -306,16 +310,32 @@ function module:GetResetTargets()
         end
         if mapID and difficultyID and name and name ~= "" then
             local difficulty = self:NormalizeLootDifficulty(difficultyID)
-            targets[content_difficulty_key(name, difficulty)] = {
+            local target = {
                 mapID = mapID,
                 difficultyID = difficultyID,
                 mapName = name,
                 difficultyKey = difficulty
             }
+            targets[content_difficulty_key(name, difficulty)] = target
+            targets.byMapDifficulty[map_difficulty_key(mapID, difficultyID)] = target
         end
     end
 
     return targets
+end
+
+function module:ResolveResetTarget(resetTargets, lockout, difficulty, category)
+    if type(resetTargets) ~= "table" or type(lockout) ~= "table" then return nil end
+
+    local target = resetTargets[content_difficulty_key(lockout.name, difficulty)]
+    if target or category ~= "worldBoss" then return target end
+
+    -- World-boss display names can differ between C_LootLockout, GetMapName,
+    -- and the reset menu. Their map and Ascension difficulty IDs are stable.
+    local mapID = tonumber(lockout.mapID)
+    local difficultyID = difficulty == "Normal" and 1 or (difficulty == "Heroic" and 2 or nil)
+    if not mapID or not difficultyID or type(resetTargets.byMapDifficulty) ~= "table" then return nil end
+    return resetTargets.byMapDifficulty[map_difficulty_key(mapID, difficultyID)]
 end
 
 function module:CanResetSpecificInstance()
@@ -686,7 +706,7 @@ function module:BuildTableModel(core, currentTime)
                 local name = tostring(character.name or "Unknown")
                 local nameKey = lower(name)
                 local existing = cell.byName[nameKey]
-                local resetTarget = isCurrentCharacter and resetTargets[content_difficulty_key(lockout.name, difficulty)] or nil
+                local resetTarget = isCurrentCharacter and self:ResolveResetTarget(resetTargets, lockout, difficulty, row.category) or nil
                 if not existing or (existing.resettable and not resettable) then
                     cell.byName[nameKey] = {
                         name = name,
@@ -844,7 +864,11 @@ function module:EnsureCellButton(rowControls, cellControls, index)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         if self.resetTarget then
             GameTooltip:SetText("Reset " .. tostring(self.resetTarget.mapName or self.rowLabel), 1, 1, 1)
-            GameTooltip:AddLine("Click to open Ascension's saved-ID reset confirmation.", nil, nil, nil, true)
+            if self.rowCategory == "worldBoss" then
+                GameTooltip:AddLine("Click to reset this world-boss instance. You can kill it again for BoE drops, but personal loot stays locked until the timer expires.", nil, nil, nil, true)
+            else
+                GameTooltip:AddLine("Click to open Ascension's saved-ID reset confirmation.", nil, nil, nil, true)
+            end
         elseif not self.isCurrentCharacter then
             GameTooltip:SetText(tostring(self.entryName or "Saved character"), 1, 1, 1)
             GameTooltip:AddLine("Log into this character to reset its saved ID.", nil, nil, nil, true)
@@ -878,6 +902,7 @@ function module:RefreshCellControls(core, rowControls, cellControls, entries, di
         button.isCurrentCharacter = entry.isCurrentCharacter
         button.resetTarget = entry.resetTarget
         button.rowLabel = row.label
+        button.rowCategory = row.category
         button.highlight:SetAlpha(entry.resetTarget and 1 or 0)
         button:Show()
         visible = index
@@ -938,7 +963,7 @@ function module:RefreshTable(core)
     if self.legendLabel then
         self.legendLabel:ClearAllPoints()
         self.legendLabel:SetPoint("TOPLEFT", self.settingsPage, "TOPLEFT", 12, y)
-        self.legendLabel:SetText("Click your character's name to reset that saved ID. |cff777777Grey = expired/resettable.|r")
+        self.legendLabel:SetText("Click names to reset. World bosses can be rerun for BoEs; personal loot stays locked. |cff777777Grey = expired.|r")
         y = y - 24
     end
     self.settingsPage:SetHeight(math.max(520, math.abs(y) + 28))
