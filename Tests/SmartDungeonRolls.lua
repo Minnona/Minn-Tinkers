@@ -1,0 +1,105 @@
+local captured
+
+if not table.getn then
+    table.getn = function(values) return #values end
+end
+
+MinnTinkers = {
+    RegisterModule = function(_, _, module)
+        captured = module
+    end
+}
+
+dofile("Modules/SmartDungeonRolls.lua")
+
+assert(captured.defaults.skipBoPConfirmations == false, "BoP confirmation skipping did not default off")
+
+local db = {
+    enabled = true,
+    skipBoPConfirmations = false
+}
+local core = {
+    GetModuleDB = function() return db end
+}
+
+local inInstance = true
+local instanceType = "party"
+IsInInstance = function() return inInstance, instanceType end
+
+local confirmedSlots = {}
+local confirmedRolls = {}
+local hiddenPopups = {}
+GetLootSlotLink = function(slotID)
+    if slotID == 4 then return "|cffa335ee|Hitem:12345:0:0:0:0:0:0:0|h[Test BoP Item]|h|r" end
+end
+ConfirmLootSlot = function(slotID)
+    table.insert(confirmedSlots, slotID)
+end
+ConfirmLootRoll = function(rollID, rollType)
+    table.insert(confirmedRolls, { rollID = rollID, rollType = rollType })
+end
+StaticPopup_Hide = function(which, data)
+    table.insert(hiddenPopups, { which = which, data = data })
+end
+
+assert(not captured:ConfirmBindLoot(core, 4), "disabled BoP option confirmed a direct pickup")
+assert(not captured:ConfirmBoPRoll(core, 12, 1), "disabled BoP option confirmed a loot roll")
+assert(table.getn(confirmedSlots) == 0 and table.getn(confirmedRolls) == 0, "disabled BoP option called a confirmation API")
+
+db.skipBoPConfirmations = true
+inInstance = false
+instanceType = "none"
+assert(not captured:ConfirmBindLoot(core, 4), "BoP pickup was confirmed outside an instance")
+assert(not captured:ConfirmBoPRoll(core, 12, 1), "BoP roll was confirmed outside an instance")
+
+inInstance = true
+instanceType = "pvp"
+assert(not captured:ConfirmBindLoot(core, 4), "BoP pickup was confirmed inside a battleground")
+
+instanceType = "party"
+assert(not captured:ConfirmBindLoot(core, 0), "invalid loot slot was confirmed")
+assert(not captured:ConfirmBindLoot(core, 5), "empty loot slot was confirmed")
+assert(captured:ConfirmBindLoot(core, 4), "valid dungeon BoP pickup was not confirmed")
+assert(confirmedSlots[1] == 4, "wrong direct loot slot was confirmed")
+assert(hiddenPopups[1] and hiddenPopups[1].which == "LOOT_BIND", "direct BoP popup was not hidden")
+
+assert(not captured:ConfirmBoPRoll(core, 0, 1), "invalid roll ID was confirmed")
+assert(not captured:ConfirmBoPRoll(core, 12, 0), "Pass was treated as a BoP confirmation")
+assert(not captured:ConfirmBoPRoll(core, 12, 4), "unknown roll type was confirmed")
+assert(captured:ConfirmBoPRoll(core, 12, 1), "valid Need confirmation was not accepted")
+assert(confirmedRolls[1].rollID == 12 and confirmedRolls[1].rollType == 1, "wrong Need roll was confirmed")
+assert(hiddenPopups[2] and hiddenPopups[2].which == "CONFIRM_LOOT_ROLL" and hiddenPopups[2].data == 12, "BoP roll popup was not hidden")
+
+instanceType = "raid"
+assert(captured:ConfirmBoPRoll(core, 13, 2), "valid raid Greed confirmation was not accepted")
+assert(confirmedRolls[2].rollType == 2, "wrong Greed roll type was confirmed")
+
+local registered = {}
+local unregistered = {}
+local scripts = {}
+CreateFrame = function()
+    local frame = {}
+    function frame:RegisterEvent(event) registered[event] = true end
+    function frame:UnregisterEvent(event) unregistered[event] = true end
+    function frame:SetScript(kind, handler) scripts[kind] = handler end
+    return frame
+end
+
+captured.frame = nil
+captured:OnEnable(core)
+assert(registered.START_LOOT_ROLL, "loot roll event was not registered")
+assert(registered.LOOT_BIND_CONFIRM, "direct BoP confirmation event was not registered")
+assert(registered.CONFIRM_LOOT_ROLL, "BoP roll confirmation event was not registered")
+assert(registered.CONFIRM_DISENCHANT_ROLL, "Disenchant confirmation event was not registered")
+assert(scripts.OnEvent, "Smart Dungeon Rolls event handler was not installed")
+
+scripts.OnEvent(nil, "CONFIRM_DISENCHANT_ROLL", 14)
+assert(confirmedRolls[3].rollID == 14 and confirmedRolls[3].rollType == 3, "Disenchant confirmation did not use the correct roll type")
+
+captured:OnDisable(core)
+assert(unregistered.START_LOOT_ROLL, "loot roll event was not unregistered")
+assert(unregistered.LOOT_BIND_CONFIRM, "direct BoP confirmation event was not unregistered")
+assert(unregistered.CONFIRM_LOOT_ROLL, "BoP roll confirmation event was not unregistered")
+assert(unregistered.CONFIRM_DISENCHANT_ROLL, "Disenchant confirmation event was not unregistered")
+
+print("SmartDungeonRolls tests passed")

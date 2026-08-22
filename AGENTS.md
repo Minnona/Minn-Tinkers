@@ -246,7 +246,9 @@ Lockboxes: Greed
 Other drops: Manual
 ```
 
-Performance: `START_LOOT_ROLL` only, bounded item-info retry, clear `OnUpdate` when done.
+Roll decisions use `START_LOOT_ROLL` only, with bounded item-info retry and a cleared `OnUpdate` when done. BoP confirmation skipping uses only its dedicated confirmation events.
+
+The default-off `skipBoPConfirmations` option confirms direct BoP pickups and Need/Greed/Disenchant rolls only inside party or raid instances. Handle only `LOOT_BIND_CONFIRM`, `CONFIRM_LOOT_ROLL`, and `CONFIRM_DISENCHANT_ROLL`; never accept generic confirmation popups by text.
 
 Option buttons should keep the same left edge and width directly in this file.
 
@@ -424,7 +426,7 @@ Future polish target: avoid permanent `OnUpdate`; only run while pending, visibl
 Current expected version after latest handoff:
 
 ```text
-0.1.52
+0.1.53
 ```
 
 When changing files, bump TOC version only when it is a real user-facing patch. Keep README/README.txt in sync if doing a release-style update.

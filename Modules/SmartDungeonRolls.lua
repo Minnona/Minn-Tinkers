@@ -20,6 +20,7 @@ local module = {
         recipeFallback = "greed", -- greed, pass, manual
         lockboxMode = "greed", -- greed, pass, need_lockpicking, manual
         otherMode = "manual", -- manual, greed, pass
+        skipBoPConfirmations = false,
         printDecisions = false,
         pausedUntil = 0
     }
@@ -580,25 +581,83 @@ function module:OnUpdate(core)
     end
 end
 
+function module:ShouldSkipBoPConfirmation(core)
+    local db = self:GetDB(core)
+    if not db or not db.skipBoPConfirmations then return false end
+
+    local inInstance, instanceType = IsInInstance()
+    return inInstance and (instanceType == "party" or instanceType == "raid")
+end
+
+function module:HideLootConfirmation(which, data)
+    if type(StaticPopup_Hide) ~= "function" then return end
+    pcall(StaticPopup_Hide, which, data)
+end
+
+function module:ConfirmBindLoot(core, slotID)
+    if not self:ShouldSkipBoPConfirmation(core) then return false end
+
+    slotID = tonumber(slotID)
+    if not slotID or slotID < 1 or slotID ~= math.floor(slotID) then return false end
+    if type(GetLootSlotLink) ~= "function" or type(ConfirmLootSlot) ~= "function" then return false end
+
+    local linkOK, link = pcall(GetLootSlotLink, slotID)
+    if not linkOK or not link then return false end
+
+    local confirmed = pcall(ConfirmLootSlot, slotID)
+    if not confirmed then return false end
+
+    self:HideLootConfirmation("LOOT_BIND")
+    return true
+end
+
+function module:ConfirmBoPRoll(core, rollID, rollType)
+    if not self:ShouldSkipBoPConfirmation(core) then return false end
+
+    rollID = tonumber(rollID)
+    rollType = tonumber(rollType)
+    if not rollID or rollID < 1 or rollID ~= math.floor(rollID) then return false end
+    if not rollType or rollType < ROLL_NEED or rollType > ROLL_DISENCHANT or rollType ~= math.floor(rollType) then return false end
+    if type(ConfirmLootRoll) ~= "function" then return false end
+
+    local confirmed = pcall(ConfirmLootRoll, rollID, rollType)
+    if not confirmed then return false end
+
+    self:HideLootConfirmation("CONFIRM_LOOT_ROLL", rollID)
+    return true
+end
+
 function module:OnEnable(core)
     if not self.frame then
         self.frame = CreateFrame("Frame")
-        self.frame:SetScript("OnEvent", function(_, event, rollID)
+        self.frame:SetScript("OnEvent", function(_, event, arg1, arg2)
             if event == "START_LOOT_ROLL" then
-                module:QueueRoll(core, rollID)
+                module:QueueRoll(core, arg1)
                 module.frame:SetScript("OnUpdate", function()
                     module:OnUpdate(core)
                 end)
+            elseif event == "LOOT_BIND_CONFIRM" then
+                module:ConfirmBindLoot(core, arg1)
+            elseif event == "CONFIRM_LOOT_ROLL" then
+                module:ConfirmBoPRoll(core, arg1, arg2)
+            elseif event == "CONFIRM_DISENCHANT_ROLL" then
+                module:ConfirmBoPRoll(core, arg1, ROLL_DISENCHANT)
             end
         end)
     end
 
     SafeRegisterEvent(self.frame, "START_LOOT_ROLL")
+    SafeRegisterEvent(self.frame, "LOOT_BIND_CONFIRM")
+    SafeRegisterEvent(self.frame, "CONFIRM_LOOT_ROLL")
+    SafeRegisterEvent(self.frame, "CONFIRM_DISENCHANT_ROLL")
 end
 
 function module:OnDisable(core)
     if self.frame then
         SafeUnregisterEvent(self.frame, "START_LOOT_ROLL")
+        SafeUnregisterEvent(self.frame, "LOOT_BIND_CONFIRM")
+        SafeUnregisterEvent(self.frame, "CONFIRM_LOOT_ROLL")
+        SafeUnregisterEvent(self.frame, "CONFIRM_DISENCHANT_ROLL")
         self.frame:SetScript("OnUpdate", nil)
     end
     self.pending = nil
@@ -701,6 +760,22 @@ function module:BuildOptions(core, panel, y)
         end
     )
     controls.useInRaids = raids
+    y = y - 28
+
+    local skipBoPConfirmations = core:CreateCheckbox(
+        panel,
+        "MinnTinkers_SmartRolls_SkipBoPConfirmations",
+        "Skip BoP loot confirmations",
+        "Skip BoP loot confirmations",
+        "Disabled by default. Automatically confirms direct BoP pickups and Need, Greed, or Disenchant rolls inside dungeons and raids only.",
+        42,
+        y,
+        db.skipBoPConfirmations,
+        function(checked)
+            core:GetModuleDB(module.key).skipBoPConfirmations = checked
+        end
+    )
+    controls.skipBoPConfirmations = skipBoPConfirmations
     y = y - 34
 
     core:CreateText(panel, "Equipment", 42, y, 500, "GameFontNormal")
@@ -790,6 +865,7 @@ function module:RefreshOptions(core)
 
     if controls.useInDungeons then controls.useInDungeons:SetChecked(db.useInDungeons and true or false) end
     if controls.useInRaids then controls.useInRaids:SetChecked(db.useInRaids and true or false) end
+    if controls.skipBoPConfirmations then controls.skipBoPConfirmations:SetChecked(db.skipBoPConfirmations and true or false) end
     if controls.needUsableRecipes then controls.needUsableRecipes:SetChecked(db.needUsableRecipes and true or false) end
     if controls.printDecisions then controls.printDecisions:SetChecked(db.printDecisions and true or false) end
 

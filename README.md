@@ -15,6 +15,7 @@ Open the settings with `/minn` or through **Interface → AddOns → Minn Tinker
 ### Universal
 
 - Smart dungeon rolls, including the Zul'Gurub green/blue Need override
+- Optional automatic confirmation for BoP pickups and loot rolls inside dungeons and raids
 - Automatic Star/Moon role markers with Mythic+ transition recovery
 - Auto-sell grey items and skip safe single-option gossip
 - Safe wardrobe and Battleground Spoils confirmation helpers
