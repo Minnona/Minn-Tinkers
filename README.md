@@ -6,8 +6,6 @@ Minn Tinkers is a collection of lightweight quality-of-life tools for World of W
 
 [**Download the latest MinnTinkers.zip**](https://github.com/Minnona/Minn-Tinkers/releases/latest/download/MinnTinkers.zip)
 
-The release archive contains the correctly named `MinnTinkers` addon folder.
-
 ## Features
 
 Open the settings with `/minn` or through **Interface → AddOns → Minn Tinkers**.
