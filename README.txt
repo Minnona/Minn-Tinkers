@@ -3,7 +3,7 @@ Minn Tinkers
 
 Personal WoW 3.3.5a quality-of-life addon.
 
-Version: 0.1.54
+Version: 0.1.55
 License: GPL-3.0
 
 Install:
@@ -94,6 +94,9 @@ Most other controls are handled through the settings UI.
 Advanced/dev actions are under /minn debug.
 
 Changelog:
+
+0.1.55
+- /minn roll log now lists accepted rolls from highest to lowest without changing the live roll data.
 
 0.1.54
 - Added automatic ElvUI checkbox styling when ElvUI is already installed.

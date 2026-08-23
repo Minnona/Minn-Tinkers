@@ -93,4 +93,25 @@ assert(registered.CHAT_MSG_RAID_LEADER, "raid leader chat event was not register
 captured:OnDisable(core)
 assert(unregistered.CHAT_MSG_RAID_LEADER, "raid leader chat event was not unregistered")
 
+local printed = {}
+local logCore = {
+    Print = function(_, message) table.insert(printed, message) end
+}
+captured.active = {
+    item = item,
+    rolls = {
+        { player = "Lowroller", roll = 17, category = "MS" },
+        { player = "Zed", roll = 88, category = "OS" },
+        { player = "Alpha", roll = 88, category = "MS" },
+        { player = "Toproller", roll = 100, category = "MS" }
+    },
+    ignored = {}
+}
+captured:PrintLog(logCore)
+assert(string.find(printed[2], "Toproller - 100 MS", 1, true), "roll log did not print the highest roll first")
+assert(string.find(printed[3], "Alpha - 88 MS", 1, true), "roll log tie order was not deterministic")
+assert(string.find(printed[4], "Zed - 88 OS", 1, true), "roll log omitted the second tied roll")
+assert(string.find(printed[5], "Lowroller - 17 MS", 1, true), "roll log did not print the lowest roll last")
+assert(captured.active.rolls[1].player == "Lowroller", "printing the roll log mutated the live roll order")
+
 print("RaidRollHelper parser tests passed: " .. tostring(#accepted + #rejected))

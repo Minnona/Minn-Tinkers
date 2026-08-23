@@ -711,7 +711,9 @@ function module:PrintLog(core)
     local active = self.active or self.lastRoll
     if not active then core:Print("No raid roll log available.") return end
     core:Print("Raid roll log for " .. tostring(active.item) .. ":")
-    for _, roll in ipairs(active.rolls or {}) do core:Print(short_name(roll.player) .. " - " .. tostring(roll.roll) .. " " .. tostring(roll.category)) end
+    local sorted = copy_list(active.rolls)
+    self:SortRolls(sorted)
+    for _, roll in ipairs(sorted) do core:Print(short_name(roll.player) .. " - " .. tostring(roll.roll) .. " " .. tostring(roll.category)) end
     if active.ignored and #active.ignored > 0 then core:Print("Ignored/duplicate rolls: " .. tostring(#active.ignored)) end
 end
 
