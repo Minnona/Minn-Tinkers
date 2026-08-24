@@ -49,30 +49,35 @@ assert(table.getn(confirmedSlots) == 0 and table.getn(confirmedRolls) == 0, "dis
 db.skipBoPConfirmations = true
 inInstance = false
 instanceType = "none"
-assert(not captured:ConfirmBindLoot(core, 4), "BoP pickup was confirmed outside an instance")
-assert(not captured:ConfirmBoPRoll(core, 12, 1), "BoP roll was confirmed outside an instance")
+assert(captured:ShouldSkipBoPConfirmation(core), "enabled BoP option remained blocked outside an instance")
+assert(captured:ConfirmBindLoot(core, 4), "open-world BoP pickup was not confirmed")
+assert(captured:ConfirmBoPRoll(core, 10, 1), "open-world BoP roll confirmation was not accepted")
+assert(confirmedSlots[1] == 4, "wrong open-world loot slot was confirmed")
+assert(confirmedRolls[1].rollID == 10 and confirmedRolls[1].rollType == 1, "wrong open-world loot roll was confirmed")
 
 inInstance = true
 instanceType = "pvp"
-assert(not captured:ConfirmBindLoot(core, 4), "BoP pickup was confirmed inside a battleground")
+assert(captured:ShouldSkipBoPConfirmation(core), "enabled BoP option remained blocked inside a battleground")
+assert(captured:ConfirmBindLoot(core, 4), "battleground BoP pickup was not confirmed")
+assert(confirmedSlots[2] == 4, "wrong battleground loot slot was confirmed")
 
 instanceType = "party"
 assert(not captured:ConfirmBindLoot(core, 0), "invalid loot slot was confirmed")
 assert(not captured:ConfirmBindLoot(core, 5), "empty loot slot was confirmed")
 assert(captured:ConfirmBindLoot(core, 4), "valid dungeon BoP pickup was not confirmed")
-assert(confirmedSlots[1] == 4, "wrong direct loot slot was confirmed")
-assert(hiddenPopups[1] and hiddenPopups[1].which == "LOOT_BIND", "direct BoP popup was not hidden")
+assert(confirmedSlots[3] == 4, "wrong dungeon loot slot was confirmed")
+assert(hiddenPopups[4] and hiddenPopups[4].which == "LOOT_BIND", "dungeon BoP popup was not hidden")
 
 assert(not captured:ConfirmBoPRoll(core, 0, 1), "invalid roll ID was confirmed")
 assert(not captured:ConfirmBoPRoll(core, 12, 0), "Pass was treated as a BoP confirmation")
 assert(not captured:ConfirmBoPRoll(core, 12, 4), "unknown roll type was confirmed")
 assert(captured:ConfirmBoPRoll(core, 12, 1), "valid Need confirmation was not accepted")
-assert(confirmedRolls[1].rollID == 12 and confirmedRolls[1].rollType == 1, "wrong Need roll was confirmed")
-assert(hiddenPopups[2] and hiddenPopups[2].which == "CONFIRM_LOOT_ROLL" and hiddenPopups[2].data == 12, "BoP roll popup was not hidden")
+assert(confirmedRolls[2].rollID == 12 and confirmedRolls[2].rollType == 1, "wrong Need roll was confirmed")
+assert(hiddenPopups[5] and hiddenPopups[5].which == "CONFIRM_LOOT_ROLL" and hiddenPopups[5].data == 12, "BoP roll popup was not hidden")
 
 instanceType = "raid"
 assert(captured:ConfirmBoPRoll(core, 13, 2), "valid raid Greed confirmation was not accepted")
-assert(confirmedRolls[2].rollType == 2, "wrong Greed roll type was confirmed")
+assert(confirmedRolls[3].rollType == 2, "wrong Greed roll type was confirmed")
 
 local registered = {}
 local unregistered = {}
@@ -94,7 +99,7 @@ assert(registered.CONFIRM_DISENCHANT_ROLL, "Disenchant confirmation event was no
 assert(scripts.OnEvent, "Smart Dungeon Rolls event handler was not installed")
 
 scripts.OnEvent(nil, "CONFIRM_DISENCHANT_ROLL", 14)
-assert(confirmedRolls[3].rollID == 14 and confirmedRolls[3].rollType == 3, "Disenchant confirmation did not use the correct roll type")
+assert(confirmedRolls[4].rollID == 14 and confirmedRolls[4].rollType == 3, "Disenchant confirmation did not use the correct roll type")
 
 captured:OnDisable(core)
 assert(unregistered.START_LOOT_ROLL, "loot roll event was not unregistered")

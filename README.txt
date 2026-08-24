@@ -3,7 +3,7 @@ Minn Tinkers
 
 Personal WoW 3.3.5a quality-of-life addon.
 
-Version: 0.1.55
+Version: 0.1.56
 License: GPL-3.0
 
 Install:
@@ -35,7 +35,7 @@ Universal:
 - Auto-sell grey items.
 - Auto-skip safe single-option gossip. Hold Shift while opening an NPC to bypass it for that interaction.
 - Smart dungeon rolls.
-- Optional automatic confirmation for BoP pickups and loot rolls inside dungeons and raids.
+- Optional automatic confirmation for BoP pickups and loot rolls wherever they occur.
 - Zul'Gurub green/blue Need override for Smart Dungeon Rolls.
 - Wardrobe Auto-Accept for appearance collection confirmations.
 - Battleground Spoils Auto-Select for single stat-choice reward windows.
@@ -94,6 +94,9 @@ Most other controls are handled through the settings UI.
 Advanced/dev actions are under /minn debug.
 
 Changelog:
+
+0.1.56
+- The default-off BoP confirmation option now covers direct pickups and loot rolls in every zone, including open-world Worldforged items.
 
 0.1.55
 - /minn roll log now lists accepted rolls from highest to lowest without changing the live roll data.

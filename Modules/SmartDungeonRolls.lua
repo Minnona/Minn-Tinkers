@@ -583,10 +583,7 @@ end
 
 function module:ShouldSkipBoPConfirmation(core)
     local db = self:GetDB(core)
-    if not db or not db.skipBoPConfirmations then return false end
-
-    local inInstance, instanceType = IsInInstance()
-    return inInstance and (instanceType == "party" or instanceType == "raid")
+    return db and db.skipBoPConfirmations and true or false
 end
 
 function module:HideLootConfirmation(which, data)
@@ -767,7 +764,7 @@ function module:BuildOptions(core, panel, y)
         "MinnTinkers_SmartRolls_SkipBoPConfirmations",
         "Skip BoP loot confirmations",
         "Skip BoP loot confirmations",
-        "Disabled by default. Automatically confirms direct BoP pickups and Need, Greed, or Disenchant rolls inside dungeons and raids only.",
+        "Disabled by default. Automatically confirms direct BoP pickups and Need, Greed, or Disenchant rolls wherever they occur.",
         42,
         y,
         db.skipBoPConfirmations,
